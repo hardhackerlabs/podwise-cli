@@ -1,0 +1,42 @@
+project_name: podwise
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - binary: podwise
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - arm64  # macOS Apple Silicon
+      - amd64  # Linux x86-64
+    # only produce the two target combinations
+    ignore:
+      - goos: darwin
+        goarch: amd64
+      - goos: linux
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - format: tar.gz
+    rlcp: true
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  disable: true

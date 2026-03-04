@@ -1,0 +1,25 @@
+# build output
+podwise
+podwise-cli
+dist/
+
+# Go
+*.test
+*.out
+coverage.txt
+
+# dependency cache (keep go.sum, ignore local module cache)
+vendor/
+
+# macOS
+.DS_Store
+
+# editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# env / secrets
+.env
+.env.*
