@@ -3,6 +3,7 @@ package episode
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/cache"
@@ -67,14 +68,28 @@ type summaryResponse struct {
 // FetchSummary returns the AI-generated summary result for the given episode seq.
 // Results are transparently cached in ~/.cache/podwise/<seq>_summary.json;
 // subsequent calls return the cached copy without hitting the network.
-func FetchSummary(ctx context.Context, client *api.Client, seq int) (*SummaryResult, error) {
+//
+// When forceRefresh is true, the cache is bypassed only if the cached file is
+// older than 10 minutes; otherwise the cached copy is still returned as-is.
+func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh bool) (*SummaryResult, error) {
 	const cacheType = "summary"
 
-	var cached SummaryResult
-	if hit, err := cache.Read(seq, cacheType, &cached); err != nil {
-		return nil, fmt.Errorf("cache: %w", err)
-	} else if hit {
-		return &cached, nil
+	skipCache := false
+	if forceRefresh {
+		stale, err := cache.IsStale(seq, cacheType, 10*time.Minute)
+		if err != nil {
+			return nil, fmt.Errorf("cache: %w", err)
+		}
+		skipCache = stale
+	}
+
+	if !skipCache {
+		var cached SummaryResult
+		if hit, err := cache.Read(seq, cacheType, &cached); err != nil {
+			return nil, fmt.Errorf("cache: %w", err)
+		} else if hit {
+			return &cached, nil
+		}
 	}
 
 	var resp summaryResponse

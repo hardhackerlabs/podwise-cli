@@ -3,6 +3,7 @@ package episode
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/cache"
@@ -26,14 +27,28 @@ type transcriptResponse struct {
 // FetchTranscripts returns the transcript segments for the given episode seq.
 // Results are transparently cached in ~/.cache/podwise/<seq>_transcript.json;
 // subsequent calls return the cached copy without hitting the network.
-func FetchTranscripts(ctx context.Context, client *api.Client, seq int) ([]Segment, error) {
+//
+// When forceRefresh is true, the cache is bypassed only if the cached file is
+// older than 10 minutes; otherwise the cached copy is still returned as-is.
+func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRefresh bool) ([]Segment, error) {
 	const cacheType = "transcript"
 
-	var cached []Segment
-	if hit, err := cache.Read(seq, cacheType, &cached); err != nil {
-		return nil, fmt.Errorf("cache: %w", err)
-	} else if hit {
-		return cached, nil
+	skipCache := false
+	if forceRefresh {
+		stale, err := cache.IsStale(seq, cacheType, 10*time.Minute)
+		if err != nil {
+			return nil, fmt.Errorf("cache: %w", err)
+		}
+		skipCache = stale
+	}
+
+	if !skipCache {
+		var cached []Segment
+		if hit, err := cache.Read(seq, cacheType, &cached); err != nil {
+			return nil, fmt.Errorf("cache: %w", err)
+		} else if hit {
+			return cached, nil
+		}
 	}
 
 	var resp transcriptResponse

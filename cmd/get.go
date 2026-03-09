@@ -27,6 +27,10 @@ var getCmd = &cobra.Command{
   podwise get keywords   https://podwise.ai/dashboard/episodes/7360326`,
 }
 
+// forceRefresh, when true, bypasses the cache for any get subcommand
+// but only if the cached file is older than 10 minutes.
+var forceRefresh bool
+
 // podwise get transcript <episode-url>
 var transcriptSeconds bool
 
@@ -100,6 +104,7 @@ var getKeywordsCmd = &cobra.Command{
 }
 
 func init() {
+	getCmd.PersistentFlags().BoolVarP(&forceRefresh, "refresh", "r", false, "bypass cache and re-fetch from API (only if cached file is older than 10 minutes)")
 	getTranscriptCmd.Flags().BoolVar(&transcriptSeconds, "seconds", false, "show time as start offset in seconds instead of hh:mm:ss")
 	getCmd.AddCommand(getTranscriptCmd)
 	getCmd.AddCommand(getSummaryCmd)
@@ -125,7 +130,7 @@ func runGetTranscript(cmd *cobra.Command, args []string) error {
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	segments, err := episode.FetchTranscripts(context.Background(), client, seq)
+	segments, err := episode.FetchTranscripts(context.Background(), client, seq, forceRefresh)
 	if err != nil {
 		return err
 	}
@@ -274,7 +279,7 @@ func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	return episode.FetchSummary(context.Background(), client, seq)
+	return episode.FetchSummary(context.Background(), client, seq, forceRefresh)
 }
 
 // parseSeq extracts the integer episode seq from a podwise episode URL.

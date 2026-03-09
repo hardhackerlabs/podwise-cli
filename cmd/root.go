@@ -8,8 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "podwise",
-	Short: "podwise — AI podcast insights from your terminal",
+	Use:          "podwise",
+	Short:        "podwise — AI podcast insights from your terminal",
+	SilenceUsage: true,
 	Long: `podwise is the CLI client for podwise.ai.
 
 Turn any podcast episode into AI-powered summaries, outlines, transcripts,

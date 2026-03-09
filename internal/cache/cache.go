@@ -81,6 +81,19 @@ func Write(seq int, contentType string, val any) error {
 	return nil
 }
 
+// IsStale reports whether the cache file for (seq, contentType) is older than
+// maxAge, or does not exist. A missing file is treated as stale.
+func IsStale(seq int, contentType string, maxAge time.Duration) (bool, error) {
+	modTime, exists, err := Stat(seq, contentType)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return true, nil
+	}
+	return time.Since(modTime) > maxAge, nil
+}
+
 // Stat returns the modification time of the cache file, and whether it exists.
 func Stat(seq int, contentType string) (modTime time.Time, exists bool, err error) {
 	path, err := filePath(seq, contentType)
