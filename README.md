@@ -14,7 +14,7 @@ curl -sL https://raw.githubusercontent.com/hardhackerlabs/podwise-cli/main/insta
 
 ## Configuration
 
-First, set your [podwise.ai](https://podwise.ai) API key:
+First, create your [podwise.ai](https://podwise.ai/dashboard/settings/developer) API key:
 
 ```bash
 # Set your API key
@@ -24,7 +24,7 @@ podwise config set api_key your-sk-xxxx
 podwise config show
 ```
 
-The configuration is stored at `~/.config/podwise/config.yaml`.
+The configuration is stored at `~/.config/podwise/config.toml`.
 
 ## Usage
 
@@ -37,8 +37,6 @@ podwise search "Hard Fork"
 ```
 
 ### Process an Episode
-
-Use a podcast URL to fetch its structured data:
 
 ```bash
 # Podwise episode URL (Recommended)
@@ -53,6 +51,7 @@ podwise process https://youtu.be/d0-Gn_Bxf8s`,
 ```
 
 ### Get Episode Details
+
 ```bash
 # Get summary
 podwise get summary http://podwise.ai/dashboard/episodes/7360326
