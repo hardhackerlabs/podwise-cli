@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/config"
@@ -120,7 +118,7 @@ func init() {
 }
 
 func runGetTranscript(cmd *cobra.Command, args []string) error {
-	seq, err := parseSeq(args[0])
+	seq, err := episode.ParseSeq(args[0])
 	if err != nil {
 		return fmt.Errorf("invalid episode: %w", err)
 	}
@@ -367,7 +365,7 @@ func runGetKeywords(cmd *cobra.Command, args []string) error {
 // fetchSummaryForURL is a shared helper that parses the episode URL,
 // loads config, and fetches (or reads from cache) the summary result.
 func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
-	seq, err := parseSeq(rawURL)
+	seq, err := episode.ParseSeq(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid episode: %w", err)
 	}
@@ -382,26 +380,4 @@ func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
 	return episode.FetchSummary(context.Background(), client, seq, forceRefresh)
-}
-
-// parseSeq extracts the integer episode seq from a podwise episode URL.
-// Expected format: https://podwise.ai/dashboard/episodes/<seq>
-func parseSeq(input string) (int, error) {
-	const hint = "(expected https://podwise.ai/dashboard/episodes/<id>)"
-
-	u, err := url.Parse(input)
-	if err != nil || u.Scheme != "https" || (u.Host != "podwise.ai" && u.Host != "beta.podwise.ai") {
-		return 0, fmt.Errorf("%q is not a valid podwise episode URL %s", input, hint)
-	}
-
-	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(parts) != 3 || parts[0] != "dashboard" || parts[1] != "episodes" || parts[2] == "" {
-		return 0, fmt.Errorf("%q is not a valid podwise episode URL %s", input, hint)
-	}
-
-	seq, err := strconv.Atoi(parts[2])
-	if err != nil || seq <= 0 {
-		return 0, fmt.Errorf("episode ID %q is not a positive integer %s", parts[2], hint)
-	}
-	return seq, nil
 }

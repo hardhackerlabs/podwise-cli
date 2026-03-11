@@ -75,7 +75,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 				Title:       hit.Title,
 				PodcastName: hit.PodcastName,
 				PublishDate: time.Unix(hit.PublishTime, 0).Format("2006-01-02"),
-				EpisodeURL:  fmt.Sprintf("https://podwise.ai/dashboard/episodes/%d", hit.Seq),
+				EpisodeURL:  episode.BuildEpisodeURL(hit.Seq),
 				Description: hit.Content,
 			})
 		}
@@ -92,7 +92,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		fmt.Printf("\n## %d. %s\n\n", i+1, hit.Title)
 		fmt.Printf("- **Podcast:** %s\n", hit.PodcastName)
 		fmt.Printf("- **Published:** %s\n", publishDate)
-		fmt.Printf("- **Episode URL:** https://podwise.ai/dashboard/episodes/%d\n", hit.Seq)
+		fmt.Printf("- **Episode URL:** %s\n", episode.BuildEpisodeURL(hit.Seq))
 		if hit.Content != "" {
 			fmt.Printf("\n> %s\n", hit.Content)
 		}
