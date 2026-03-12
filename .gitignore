@@ -24,3 +24,5 @@ vendor/
 # env / secrets
 .env
 .env.*
+*.mp3
+*.mp4

@@ -3,6 +3,7 @@ package episode
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -48,6 +49,14 @@ func IsYouTubeURL(rawURL string) bool {
 		return len(u.Path) > 1
 	}
 	return false
+}
+
+// IsLocalMediaFile reports whether path refers to an existing regular file
+// (not a directory or URL). Extension validation is left to episode.Upload
+// so that the error message lists all supported formats.
+func IsLocalMediaFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // IsXiaoyuzhouURL reports whether rawURL points to a Xiaoyuzhou episode.

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
@@ -16,18 +18,25 @@ import (
 var processNoWait bool
 var processPollInterval time.Duration
 var processTimeout time.Duration
+var processTitle string
+var processHotwords string
 
-// podwise process <url>
+// podwise process <url|file>
 var processCmd = &cobra.Command{
-	Use:   "process <url>",
-	Short: "Submit a podcast episode or YouTube video for AI processing",
-	Long: `Submit a podcast episode or YouTube video for AI processing (transcription and analysis).
+	Use:   "process <url|file>",
+	Short: "Submit a podcast episode, YouTube video, or local media file for AI processing",
+	Long: `Submit a podcast episode, YouTube video, or local audio/video file for AI processing
+(transcription and analysis).
 
-Accepted URL formats:
-  https://podwise.ai/dashboard/episodes/<id>          Podwise episode
-  https://www.xiaoyuzhoufm.com/episode/<id>           Xiaoyuzhou episode
-  https://www.youtube.com/watch?v=<id>                YouTube video
-  https://youtu.be/<id>                               YouTube short URL
+Accepted inputs:
+  https://podwise.ai/dashboard/episodes/<id>               Podwise episode
+  https://www.xiaoyuzhoufm.com/episode/<id>                Xiaoyuzhou episode
+  https://www.youtube.com/watch?v=<id>                     YouTube video
+  https://youtu.be/<id>                                    YouTube short URL
+  /path/to/file.mp3 (or .wav .m4a .mp4 .m4v .mov .webm)    Local media file
+
+For local files, use --title to set the episode title (defaults to
+the filename without extension).
 
 Processing consumes credits from your account. The API is asynchronous —
 the request returns immediately and the command polls for status until complete.
@@ -40,7 +49,9 @@ Status values:
 	Example: `  podwise process https://podwise.ai/dashboard/episodes/7360326
   podwise process https://www.xiaoyuzhoufm.com/episode/abc123
   podwise process https://www.youtube.com/watch?v=d0-Gn_Bxf8s
-  podwise process https://youtu.be/d0-Gn_Bxf8s`,
+  podwise process https://youtu.be/d0-Gn_Bxf8s
+  podwise process ./interview.mp3 --title "My Interview"
+  podwise process ./interview.mp3 --title "My Interview" --hotwords "podwise,ai,podcast"`,
 	Args: cobra.ExactArgs(1),
 	RunE: runProcess,
 }
@@ -49,6 +60,8 @@ func init() {
 	processCmd.Flags().BoolVar(&processNoWait, "no-wait", false, "submit and return immediately without polling for completion")
 	processCmd.Flags().DurationVar(&processPollInterval, "interval", 30*time.Second, "how often to poll for status updates (min 30s)")
 	processCmd.Flags().DurationVar(&processTimeout, "timeout", 30*time.Minute, "maximum time to wait for processing to complete")
+	processCmd.Flags().StringVar(&processTitle, "title", "", "episode title for local file uploads (defaults to filename without extension)")
+	processCmd.Flags().StringVar(&processHotwords, "hotwords", "", "comma-separated hotwords to improve transcription accuracy (local media file only)")
 }
 
 func runProcess(cmd *cobra.Command, args []string) error {
@@ -71,6 +84,11 @@ func runProcess(cmd *cobra.Command, args []string) error {
 	switch {
 	case episode.IsYouTubeURL(input) || episode.IsXiaoyuzhouURL(input):
 		seq, err = importEpisode(ctx, client, input)
+		if err != nil {
+			return err
+		}
+	case episode.IsLocalMediaFile(input):
+		seq, err = uploadEpisode(ctx, client, input, processTitle, processHotwords)
 		if err != nil {
 			return err
 		}
@@ -158,6 +176,30 @@ func printProcessStatus(r *episode.ProcessResult, maxProgress float64) {
 	default:
 		fmt.Printf("  [%s] ? %s\n", ts, r.Status)
 	}
+}
+
+// uploadEpisode uploads a local media file to Podwise and returns the episode seq.
+// title defaults to the filename stem when empty.
+func uploadEpisode(ctx context.Context, client *api.Client, filePath, title, keywords string) (int, error) {
+	if title == "" {
+		base := filepath.Base(filePath)
+		title = strings.TrimSuffix(base, filepath.Ext(base))
+	}
+	fmt.Printf("Uploading %s ...\n", filePath)
+	result, err := episode.Upload(ctx, client, episode.UploadOptions{
+		Title:    title,
+		FilePath: filePath,
+		Keywords: keywords,
+	})
+	if err != nil {
+		var cleanupErr *episode.UploadCleanupError
+		if errors.As(err, &cleanupErr) && cleanupErr.CleanupErr != nil {
+			fmt.Printf("warning: orphaned storage object %q — cleanup failed: %v\n", cleanupErr.StoragePath, cleanupErr.CleanupErr)
+		}
+		return 0, fmt.Errorf("upload failed: %w", err)
+	}
+	fmt.Printf("Uploaded: %q → episode: %s\n\n", result.Title, episode.BuildEpisodeURL(result.Seq))
+	return result.Seq, nil
 }
 
 // importEpisode imports a YouTube or Xiaoyuzhou URL into Podwise and returns
