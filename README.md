@@ -56,13 +56,13 @@ The configuration is stored at `~/.config/podwise/config.toml`.
 
 You can search for podcast episodes or process specific episodes to get summaries and transcripts.
 
-### Search Episodes
+#### Search Episodes
 
 ```bash
 podwise search "Hard Fork"
 ```
 
-### Process an Episode
+#### Process an Episode
 
 ```bash
 # Podwise episode URL (Recommended)
@@ -76,7 +76,7 @@ podwise process https://www.youtube.com/watch?v=d0-Gn_Bxf8s
 podwise process https://youtu.be/d0-Gn_Bxf8s`,
 ```
 
-### Get Episode Details
+#### Get Episode Details
 
 ```bash
 # Get summary
@@ -92,6 +92,8 @@ podwise --help
 ```
 
 ## Agent Skills
+
+> **Prerequisites:** Before installing skills, make sure you have completed the [Installation](#installation) and [Configuration](#configuration) steps above — the `podwise` CLI must be installed and your `api_key` must be set.
 
 Podwise provides official agent skills out of the box. Run the following command to install the latest skills into your current directory:
 
