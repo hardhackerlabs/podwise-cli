@@ -20,6 +20,11 @@ podwise process https://www.xiaoyuzhoufm.com/episode/<id>
 # YouTube long / short URL
 podwise process https://www.youtube.com/watch?v=<id>
 podwise process https://youtu.be/<id>
+
+# Local media file (.mp3 .wav .m4a .mp4 .m4v .mov .webm)
+podwise process ./interview.mp3
+podwise process ./meeting.wav --title "会议录音"
+podwise process ./demo.mp4 --title "发布会录屏" --hotwords "Podwise,LLM,ASR"
 ```
 
 ## 3) 控制轮询与超时
@@ -32,13 +37,13 @@ podwise process <url> --no-wait
 ## 4) 拉取结果内容
 
 ```bash
-podwise get summary <episode-url>
 podwise get transcript <episode-url>
 podwise get transcript <episode-url> --format text
 podwise get transcript <episode-url> --format json
 podwise get transcript <episode-url> --format srt
 podwise get transcript <episode-url> --format vtt
 podwise get transcript <episode-url> --seconds
+podwise get summary <episode-url>
 podwise get qa <episode-url>
 podwise get chapters <episode-url>
 podwise get mindmap <episode-url>
@@ -77,4 +82,9 @@ podwise get keywords "<resolved-episode-url>"
 podwise get transcript "<resolved-episode-url>" --format text
 podwise get transcript "<resolved-episode-url>" --format srt
 podwise get transcript "<resolved-episode-url>" --format vtt
+
+# 需求：处理本地音视频文件
+podwise process "./meeting.m4a" --title "周会录音" --hotwords "产品,路线图"
+podwise get summary "<resolved-episode-url>"
+podwise get transcript "<resolved-episode-url>" --format text
 ```

@@ -2,11 +2,11 @@
 set -euo pipefail
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
-  echo "Usage: $0 <podwise-episode-url> [output-dir]" >&2
+  echo "Usage: $0 <episode-url|video-url|local-file-path> [output-dir]" >&2
   exit 1
 fi
 
-episode_url="$1"
+input="$1"
 output_dir="${2:-./podwise-output}"
 process_log="${output_dir}/process.log"
 
@@ -20,18 +20,33 @@ require_cmd() {
 require_cmd podwise
 mkdir -p "$output_dir"
 
-echo "Processing: $episode_url"
-podwise process "$episode_url" --interval 30s --timeout 45m | tee "$process_log"
+process_cmd=(podwise process "$input" --interval 30s --timeout 45m)
+if [[ -n "${PODWISE_PROCESS_TITLE:-}" ]]; then
+  process_cmd+=(--title "$PODWISE_PROCESS_TITLE")
+fi
+if [[ -n "${PODWISE_PROCESS_HOTWORDS:-}" ]]; then
+  process_cmd+=(--hotwords "$PODWISE_PROCESS_HOTWORDS")
+fi
 
-echo "Fetching summary -> ${output_dir}/summary.md"
-podwise get summary "$episode_url" >"${output_dir}/summary.md"
+echo "Processing: $input"
+"${process_cmd[@]}" | tee "$process_log"
 
-echo "Fetching transcript (text/srt/vtt)"
+episode_url="$input"
+if [[ ! "$episode_url" =~ ^https://podwise\.ai/dashboard/episodes/[0-9]+$ ]]; then
+  episode_url="$(grep -Eo 'https://podwise\.ai/dashboard/episodes/[0-9]+' "$process_log" | tail -n 1 || true)"
+  if [[ -z "$episode_url" ]]; then
+    echo "Failed to resolve podwise episode URL from process output." >&2
+    exit 1
+  fi
+fi
+
+echo "Resolved episode URL: $episode_url"
+
+echo "Fetching transcript"
 podwise get transcript "$episode_url" --format text >"${output_dir}/transcript.txt"
-podwise get transcript "$episode_url" --format srt >"${output_dir}/transcript.srt"
-podwise get transcript "$episode_url" --format vtt >"${output_dir}/transcript.vtt"
 
-echo "Fetching chapters/qa/mindmap/highlights/keywords"
+echo "Fetching summary/chapters/qa/mindmap/highlights/keywords"
+podwise get summary "$episode_url" >"${output_dir}/summary.md"
 podwise get chapters "$episode_url" >"${output_dir}/chapters.md"
 podwise get qa "$episode_url" >"${output_dir}/qa.md"
 podwise get mindmap "$episode_url" >"${output_dir}/mindmap.md"
