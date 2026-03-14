@@ -21,8 +21,12 @@ var searchJSONOutput bool
 // podwise search <query>
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
-	Short: "Search for podcast episodes",
-	Long:  "Search for podcast episodes across the Podwise database and print results to stdout.",
+	Short: "Search for podcast episodes by title keywords",
+	Long: `Search for podcast episodes by title keywords.
+
+The query is matched against episode titles. Multiple words are treated as a
+single phrase — wrap them in quotes or just pass them as separate arguments.
+`,
 	Example: `  podwise search "machine learning"
   podwise search "machine learning" --limit 20
   podwise search "machine learning" --json`,

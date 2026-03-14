@@ -27,7 +27,7 @@ If `podwise` is not installed yet, load [references/installation.md](references/
 
 ## Step 2: Choose the Workflow
 
-- If the user provides only a topic or episode title, run `podwise search "<query>" --limit 10` unless the user explicitly asks for a different number of results.
+- If the user provides only an episode title or keywords, run `podwise search "<query>" --limit 10` unless the user explicitly asks for a different number of results.
 - If the user provides a YouTube or Xiaoyuzhou URL, run `podwise process <url>`; Podwise will import it automatically.
 - If the user provides a local audio or video file path, run `podwise process <file>`; Podwise will upload it and create an episode automatically.
 - If the user provides a Podwise episode URL and processing may not be complete yet, run `podwise process <episode-url>`.
