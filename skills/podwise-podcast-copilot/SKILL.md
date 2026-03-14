@@ -1,9 +1,9 @@
 ---
-name: podwise-podcast-processor
+name: podwise-podcast-copilot
 description: "End-to-end podcast and media processing with podwise CLI: search episodes, process Podwise episode URLs, YouTube videos, Xiaoyuzhou episode links, and local audio or video files, wait for processing to finish, then retrieve transcript, summary, chapters, Q&A, mind map, highlights, and keywords. Use when the user asks to process a podcast, summarize an episode, extract subtitles or a transcript, turn YouTube into notes, summarize a Xiaoyuzhou episode, transcribe a local recording, or extract key points from a local video or audio file."
 ---
 
-# Podwise Podcast Processor
+# Podwise Podcast Copilot
 
 Use this skill to turn raw podcast, video, and audio inputs into structured outputs that are easy to read, export, or reuse.
 
