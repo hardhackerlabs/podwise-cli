@@ -1,6 +1,6 @@
 ---
 name: podwise-podcast-processor
-description: End-to-end podcast and media processing with podwise CLI: search episodes, process Podwise episode URLs, YouTube videos, Xiaoyuzhou episode links, and local audio or video files, wait for processing to finish, then retrieve transcript, summary, chapters, Q&A, mind map, highlights, and keywords. Use when the user asks to process a podcast, summarize an episode, extract subtitles or a transcript, turn YouTube into notes, summarize a Xiaoyuzhou episode, transcribe a local recording, or extract key points from a local video or audio file.
+description: "End-to-end podcast and media processing with podwise CLI: search episodes, process Podwise episode URLs, YouTube videos, Xiaoyuzhou episode links, and local audio or video files, wait for processing to finish, then retrieve transcript, summary, chapters, Q&A, mind map, highlights, and keywords. Use when the user asks to process a podcast, summarize an episode, extract subtitles or a transcript, turn YouTube into notes, summarize a Xiaoyuzhou episode, transcribe a local recording, or extract key points from a local video or audio file."
 ---
 
 # Podwise Podcast Processor
@@ -25,7 +25,7 @@ podwise config show
 
 ## Step 2: Choose the Workflow
 
-- If the user provides only a topic or episode title, run `podwise search`.
+- If the user provides only a topic or episode title, run `podwise search "<query>" --limit 10` unless the user explicitly asks for a different number of results.
 - If the user provides a YouTube or Xiaoyuzhou URL, run `podwise process <url>`; Podwise will import it automatically.
 - If the user provides a local audio or video file path, run `podwise process <file>`; Podwise will upload it and create an episode automatically.
 - If the user provides a Podwise episode URL and processing may not be complete yet, run `podwise process <episode-url>`.
@@ -36,9 +36,12 @@ podwise config show
 ### Search for Episodes
 
 ```bash
-podwise search "Hard Fork"
+podwise search "Hard Fork" --limit 10
 podwise search "AI agent" --json
+podwise search "AI agent" --limit 10 --json
 ```
+
+Default to `--limit 10` for search results unless the user explicitly requests a different limit.
 
 Use `--json` when the output will be parsed by another tool or step.
 
@@ -77,7 +80,8 @@ For local files, follow the same pattern: run `process <file>` first, then use t
 ## User Request to Command Mapping
 
 - "Process this YouTube video and give me the transcript and summary" -> `process` + `get transcript` + `get summary`
-- "Find a few podcast episodes about this topic" -> `search "<topic>" --limit <n>`
+- "Find a few podcast episodes about this topic" -> `search "<topic>" --limit 10`
+- If the user explicitly asks for a different number of search results, use that number instead of `10`.
 - "Export subtitles" -> `get transcript --format srt` or `get transcript --format vtt`
 - "Give me a structured recap" -> `get summary` + `get chapters` + `get highlights` + `get keywords`
 - "Transcribe this local recording/video and extract the key points" -> `process <file>` + `get transcript` + `get summary`

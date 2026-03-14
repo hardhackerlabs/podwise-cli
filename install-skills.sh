@@ -35,4 +35,35 @@ curl -sL -o "$TMP_DIR/$FILE_NAME" "$DOWNLOAD_URL"
 echo "==> Extracting to current directory..."
 tar xzf "$TMP_DIR/$FILE_NAME" -C .
 
-echo "${GREEN}==> Skills installed successfully!${NC}"
+INSTALL_DIR="$(pwd)/podwise-skills"
+
+echo ""
+echo "${GREEN}==> Skills downloaded to: ${INSTALL_DIR}${NC}"
+echo ""
+echo "==> Available skills:"
+if [ -d "$INSTALL_DIR" ]; then
+    for skill_dir in "$INSTALL_DIR"/*/; do
+        if [ -d "$skill_dir" ]; then
+            skill_name=$(basename "$skill_dir")
+            printf "    - %s\n" "$skill_name"
+        fi
+    done
+else
+    echo "    (no skills directory found, please check the extracted content)"
+fi
+
+echo ""
+echo "==> Next steps: install the skills into your agent environment as needed."
+echo ""
+echo "    OpenAI Codex:"
+echo "      cp -r ${INSTALL_DIR}/* ~/.agents/skills/"
+echo ""
+echo "    Gemini CLI:"
+echo "      cp -r ${INSTALL_DIR}/* ~/.gemini/skills/"
+echo ""
+echo "    Cursor:"
+echo "      cp -r ${INSTALL_DIR}/* ~/.cursor/skills-cursor/"
+echo ""
+echo "    Claude Code:"
+echo "      cp -r ${INSTALL_DIR}/* ~/.claude/skills/"
+echo ""
