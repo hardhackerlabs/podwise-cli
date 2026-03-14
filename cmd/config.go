@@ -44,6 +44,7 @@ var configShowCmd = &cobra.Command{
 
 		if cfg.APIKey == "" {
 			fmt.Printf("user_id     : (api_key not set)\n")
+			fmt.Printf("status      : ✗ configuration invalid\n")
 			return nil
 		}
 
@@ -51,9 +52,11 @@ var configShowCmd = &cobra.Command{
 		var me meResponse
 		if err := client.Get(context.Background(), "/open/v1/me", nil, &me); err != nil {
 			fmt.Printf("user_id     : (failed to fetch: %v)\n", err)
+			fmt.Printf("status      : ✗ configuration invalid\n")
 			return nil
 		}
 		fmt.Printf("user_id     : %s\n", me.Result.UserID)
+		fmt.Printf("status      : ✓ configuration ok\n")
 
 		return nil
 	},
