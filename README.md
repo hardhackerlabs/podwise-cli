@@ -4,7 +4,8 @@ CLI client for [podwise.ai](https://podwise.ai) — turn any podcast episode int
 
 Podwise transforms hours of podcasts into transcripts, summaries, outlines, Q&A, and mind maps. This CLI is purpose-built as a **tool for AI agents** — letting LLMs, skills runtimes, and automation pipelines fetch structured podcast insights without a browser or human in the loop.
 
-> Looking for ready-to-use agent skills? Jump to [Agent Skills](#agent-skills) →
+- 🤖 Looking for ready-to-use agent skills? Jump to [Agent Skills](#agent-skills) →
+- 🔌 Looking for mcp server? Jump to [MCP Server](#mcp-server) →
 
 ## Installation
 
