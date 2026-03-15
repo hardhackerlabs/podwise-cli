@@ -30,4 +30,5 @@ func init() {
 	rootCmd.AddCommand(processCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(mcpCmd)
 }

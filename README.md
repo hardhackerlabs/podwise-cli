@@ -109,3 +109,44 @@ curl -sL https://raw.githubusercontent.com/hardhackerlabs/podwise-cli/main/insta
 ```
 
 You can also build your own skills on top of the `podwise` CLI to create custom workflows that fit your needs.
+
+## MCP Server
+
+Podwise exposes all its capabilities as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server, allowing AI assistants (Gemini CLI, Claude Desktop, Cursor, etc.) to search episodes, process media, and retrieve AI-generated content directly as tools.
+
+Start the MCP server (communicates over stdin/stdout):
+
+```bash
+podwise mcp
+```
+
+The server exposes the following tools:
+
+| Tool             | Description                                                             |
+| ---------------- | ----------------------------------------------------------------------- |
+| `search`         | Search for podcast episodes by keyword                                  |
+| `process`        | Submit a YouTube / 小宇宙 / Podwise URL or local file for AI processing |
+| `get_transcript` | Fetch the full transcript (text / SRT / VTT)                            |
+| `get_summary`    | Fetch the AI-generated summary and key takeaways                        |
+| `get_qa`         | Fetch AI-extracted Q&A pairs                                            |
+| `get_chapters`   | Fetch the chapter breakdown with timestamps                             |
+| `get_mindmap`    | Fetch the AI-generated mind map                                         |
+| `get_highlights` | Fetch notable highlights with timestamps                                |
+| `get_keywords`   | Fetch topic keywords with descriptions                                  |
+
+#### Install
+
+1. Make sure `podwise` is installed and configured (see [Installation](#installation) and [Configuration](#configuration)).
+
+2. Add the following to your settings file:
+
+```json
+{
+  "mcpServers": {
+    "podwise": {
+      "command": "podwise",
+      "args": ["mcp"]
+    }
+  }
+}
+```
