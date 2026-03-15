@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -142,25 +141,7 @@ func mcpSearch(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput)
 		return nil, struct{}{}, err
 	}
 
-	if len(result.Hits) == 0 {
-		return textResult("No results found."), struct{}{}, nil
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "# Search: %q\n\n", in.Query)
-	fmt.Fprintf(&sb, "**Found:** %d\n\n---\n", len(result.Hits))
-	for i, hit := range result.Hits {
-		publishDate := time.Unix(hit.PublishTime, 0).Format("2006-01-02")
-		fmt.Fprintf(&sb, "\n## %d. %s\n\n", i+1, hit.Title)
-		fmt.Fprintf(&sb, "- **Podcast:** %s\n", hit.PodcastName)
-		fmt.Fprintf(&sb, "- **Published:** %s\n", publishDate)
-		fmt.Fprintf(&sb, "- **Episode URL:** %s\n", episode.BuildEpisodeURL(hit.Seq))
-		if hit.Content != "" {
-			fmt.Fprintf(&sb, "\n> %s\n", hit.Content)
-		}
-		sb.WriteString("\n---\n")
-	}
-	return textResult(sb.String()), struct{}{}, nil
+	return textResult(result.FormatText(in.Query)), struct{}{}, nil
 }
 
 // ─── Tool: process ────────────────────────────────────────────────────────────
@@ -308,64 +289,16 @@ func mcpGetTranscript(ctx context.Context, req *mcp.CallToolRequest, in mcpGetTr
 		return nil, struct{}{}, err
 	}
 
-	format := in.Format
-	if format == "" {
-		format = "text"
-	}
-
-	var sb strings.Builder
-	switch format {
+	switch in.Format {
 	case "text", "":
-		for _, seg := range segments {
-			t := mcpTimeLabel(seg, in.Seconds)
-			if seg.Speaker != "" {
-				fmt.Fprintf(&sb, "[%s] - %s: %s\n", t, seg.Speaker, seg.Content)
-			} else {
-				fmt.Fprintf(&sb, "[%s] - %s\n", t, seg.Content)
-			}
-		}
+		return textResult(episode.FormatTranscriptText(segments, in.Seconds)), struct{}{}, nil
 	case "srt":
-		for i, seg := range segments {
-			fmt.Fprintf(&sb, "%d\n%s --> %s\n",
-				i+1,
-				msToTimestamp(seg.Start, ','),
-				msToTimestamp(segmentEnd(seg), ','),
-			)
-			if seg.Speaker != "" {
-				fmt.Fprintf(&sb, "%s: %s\n", seg.Speaker, seg.Content)
-			} else {
-				sb.WriteString(seg.Content)
-				sb.WriteByte('\n')
-			}
-			sb.WriteByte('\n')
-		}
+		return textResult(episode.FormatTranscriptSRT(segments)), struct{}{}, nil
 	case "vtt":
-		sb.WriteString("WEBVTT\n\n")
-		for _, seg := range segments {
-			fmt.Fprintf(&sb, "%s --> %s\n",
-				msToTimestamp(seg.Start, '.'),
-				msToTimestamp(segmentEnd(seg), '.'),
-			)
-			if seg.Speaker != "" {
-				fmt.Fprintf(&sb, "%s: %s\n", seg.Speaker, seg.Content)
-			} else {
-				sb.WriteString(seg.Content)
-				sb.WriteByte('\n')
-			}
-			sb.WriteByte('\n')
-		}
+		return textResult(episode.FormatTranscriptVTT(segments)), struct{}{}, nil
 	default:
-		return nil, struct{}{}, fmt.Errorf("unknown format %q: use text, srt, or vtt", format)
+		return nil, struct{}{}, fmt.Errorf("unknown format %q: use text, srt, or vtt", in.Format)
 	}
-
-	return textResult(sb.String()), struct{}{}, nil
-}
-
-func mcpTimeLabel(seg episode.Segment, useSeconds bool) string {
-	if useSeconds {
-		return strconv.FormatFloat(seg.Start/1000, 'f', -1, 64)
-	}
-	return seg.Time
 }
 
 // ─── Tool: get_summary ────────────────────────────────────────────────────────
@@ -383,18 +316,7 @@ func mcpGetSummary(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeI
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-
-	var sb strings.Builder
-	if result.Summary != "" {
-		sb.WriteString(result.Summary)
-	}
-	if len(result.Takeaways) > 0 {
-		sb.WriteString("\n\nTakeaways:\n")
-		for i, t := range result.Takeaways {
-			fmt.Fprintf(&sb, "%d. %s\n", i+1, t)
-		}
-	}
-	return textResult(sb.String()), struct{}{}, nil
+	return textResult(result.FormatSummary()), struct{}{}, nil
 }
 
 // ─── Tool: get_qa ─────────────────────────────────────────────────────────────
@@ -408,25 +330,7 @@ func mcpGetQA(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput)
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-
-	if len(result.QAs) == 0 {
-		return textResult("(no Q&A available)"), struct{}{}, nil
-	}
-
-	var sb strings.Builder
-	for i, qa := range result.QAs {
-		if qa.QuestionSpeaker != "" {
-			fmt.Fprintf(&sb, "Q%d [%s]: %s\n", i+1, qa.QuestionSpeaker, qa.Question)
-		} else {
-			fmt.Fprintf(&sb, "Q%d: %s\n", i+1, qa.Question)
-		}
-		if qa.AnswerSpeaker != "" {
-			fmt.Fprintf(&sb, "A%d [%s]: %s\n\n", i+1, qa.AnswerSpeaker, qa.Answer)
-		} else {
-			fmt.Fprintf(&sb, "A%d: %s\n\n", i+1, qa.Answer)
-		}
-	}
-	return textResult(sb.String()), struct{}{}, nil
+	return textResult(result.FormatQA()), struct{}{}, nil
 }
 
 // ─── Tool: get_chapters ───────────────────────────────────────────────────────
@@ -440,24 +344,7 @@ func mcpGetChapters(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisode
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-
-	if len(result.Chapters) == 0 {
-		return textResult("(no chapters available)"), struct{}{}, nil
-	}
-
-	var sb strings.Builder
-	for i, ch := range result.Chapters {
-		adLabel := ""
-		if ch.HasAds {
-			adLabel = " [ad]"
-		}
-		fmt.Fprintf(&sb, "### [%s] Chapter %d: %s%s\n\n", ch.Time, i+1, ch.Title, adLabel)
-		if ch.Summary != "" {
-			fmt.Fprintf(&sb, "%s\n", ch.Summary)
-		}
-		sb.WriteByte('\n')
-	}
-	return textResult(sb.String()), struct{}{}, nil
+	return textResult(result.FormatChapters()), struct{}{}, nil
 }
 
 // ─── Tool: get_mindmap ────────────────────────────────────────────────────────
@@ -471,11 +358,7 @@ func mcpGetMindmap(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeI
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-
-	if result.Mindmap == "" {
-		return textResult("(no mind map available)"), struct{}{}, nil
-	}
-	return textResult(result.Mindmap), struct{}{}, nil
+	return textResult(result.FormatMindmap()), struct{}{}, nil
 }
 
 // ─── Tool: get_highlights ─────────────────────────────────────────────────────
@@ -489,16 +372,7 @@ func mcpGetHighlights(ctx context.Context, req *mcp.CallToolRequest, in mcpEpiso
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-
-	if len(result.Highlights) == 0 {
-		return textResult("(no highlights available)"), struct{}{}, nil
-	}
-
-	var sb strings.Builder
-	for i, h := range result.Highlights {
-		fmt.Fprintf(&sb, "%d. [%s] %s\n", i+1, h.Time, h.Content)
-	}
-	return textResult(sb.String()), struct{}{}, nil
+	return textResult(result.FormatHighlights()), struct{}{}, nil
 }
 
 // ─── Tool: get_keywords ───────────────────────────────────────────────────────
@@ -512,18 +386,5 @@ func mcpGetKeywords(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisode
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-
-	if len(result.Keywords) == 0 {
-		return textResult("(no keywords available)"), struct{}{}, nil
-	}
-
-	var sb strings.Builder
-	for i, kw := range result.Keywords {
-		if kw.Desc != "" {
-			fmt.Fprintf(&sb, "%d. **%s**: %s\n", i+1, kw.Key, kw.Desc)
-		} else {
-			fmt.Fprintf(&sb, "%d. **%s**\n", i+1, kw.Key)
-		}
-	}
-	return textResult(sb.String()), struct{}{}, nil
+	return textResult(result.FormatKeywords()), struct{}{}, nil
 }

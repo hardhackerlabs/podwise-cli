@@ -2,7 +2,10 @@ package episode
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
@@ -63,4 +66,116 @@ func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRef
 	}
 
 	return resp.Result, nil
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// segmentEnd returns the end timestamp (ms) for a segment, falling back to start+2s.
+func segmentEnd(seg Segment) float64 {
+	if seg.End > seg.Start {
+		return seg.End
+	}
+	return seg.Start + 2000
+}
+
+// msToTimestamp converts milliseconds to "HH:MM:SS<sep>mmm".
+func msToTimestamp(ms float64, sep byte) string {
+	total := int(ms)
+	millis := total % 1000
+	total /= 1000
+	secs := total % 60
+	total /= 60
+	mins := total % 60
+	hours := total / 60
+	return fmt.Sprintf("%02d:%02d:%02d%c%03d", hours, mins, secs, sep, millis)
+}
+
+// segmentTimeLabel returns the timestamp string for a segment.
+// When useSeconds is true, it returns seconds as a decimal string; otherwise hh:mm:ss.
+func segmentTimeLabel(seg Segment, useSeconds bool) string {
+	if useSeconds {
+		return strconv.FormatFloat(seg.Start/1000, 'f', -1, 64)
+	}
+	return seg.Time
+}
+
+// ─── Formatters ───────────────────────────────────────────────────────────────
+
+// FormatTranscriptText formats transcript segments as plain text.
+// Each line is "[timestamp] - [speaker: ]content".
+// When useSeconds is true, timestamps are shown as elapsed seconds instead of hh:mm:ss.
+func FormatTranscriptText(segments []Segment, useSeconds bool) string {
+	var sb strings.Builder
+	for _, seg := range segments {
+		t := segmentTimeLabel(seg, useSeconds)
+		if seg.Speaker != "" {
+			fmt.Fprintf(&sb, "[%s] - %s: %s\n", t, seg.Speaker, seg.Content)
+		} else {
+			fmt.Fprintf(&sb, "[%s] - %s\n", t, seg.Content)
+		}
+	}
+	return sb.String()
+}
+
+// SegmentJSON is the JSON-serialisable view of a single transcript segment.
+type SegmentJSON struct {
+	Start   any    `json:"start"`
+	Speaker string `json:"speaker,omitempty"`
+	Content string `json:"content"`
+}
+
+// FormatTranscriptJSON serialises transcript segments as indented JSON.
+// When useSeconds is true, the start field is a float (seconds); otherwise a string timestamp.
+func FormatTranscriptJSON(segments []Segment, useSeconds bool) ([]byte, error) {
+	out := make([]SegmentJSON, len(segments))
+	for i, seg := range segments {
+		var start any
+		if useSeconds {
+			start = seg.Start / 1000
+		} else {
+			start = seg.Time
+		}
+		out[i] = SegmentJSON{Start: start, Speaker: seg.Speaker, Content: seg.Content}
+	}
+	return json.MarshalIndent(out, "", "  ")
+}
+
+// FormatTranscriptSRT formats transcript segments as an SRT subtitle file.
+func FormatTranscriptSRT(segments []Segment) string {
+	var sb strings.Builder
+	for i, seg := range segments {
+		fmt.Fprintf(&sb, "%d\n%s --> %s\n",
+			i+1,
+			msToTimestamp(seg.Start, ','),
+			msToTimestamp(segmentEnd(seg), ','),
+		)
+		if seg.Speaker != "" {
+			fmt.Fprintf(&sb, "%s: %s\n", seg.Speaker, seg.Content)
+		} else {
+			sb.WriteString(seg.Content)
+			sb.WriteByte('\n')
+		}
+		sb.WriteByte('\n')
+	}
+	return sb.String()
+}
+
+// FormatTranscriptVTT formats transcript segments as a WebVTT subtitle file.
+func FormatTranscriptVTT(segments []Segment) string {
+	var sb strings.Builder
+	sb.WriteString("WEBVTT\n\n")
+	for _, seg := range segments {
+		fmt.Fprintf(&sb, "%s --> %s\n",
+			msToTimestamp(seg.Start, '.'),
+			msToTimestamp(segmentEnd(seg), '.'),
+		)
+		if seg.Speaker != "" {
+			fmt.Fprintf(&sb, "%s: %s\n", seg.Speaker, seg.Content)
+		} else {
+			sb.WriteString(seg.Content)
+			sb.WriteByte('\n')
+		}
+		sb.WriteByte('\n')
+	}
+	return sb.String()
 }

@@ -2,10 +2,7 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"strconv"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/config"
@@ -144,112 +141,21 @@ func runGetTranscript(cmd *cobra.Command, args []string) error {
 func printTranscript(segments []episode.Segment, format string, useSeconds bool) error {
 	switch format {
 	case "text", "":
-		printTranscriptText(segments, useSeconds)
+		fmt.Print(episode.FormatTranscriptText(segments, useSeconds))
 	case "json":
-		return printTranscriptJSON(segments, useSeconds)
+		data, err := episode.FormatTranscriptJSON(segments, useSeconds)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
 	case "srt":
-		printTranscriptSRT(segments)
+		fmt.Print(episode.FormatTranscriptSRT(segments))
 	case "vtt":
-		printTranscriptVTT(segments)
+		fmt.Print(episode.FormatTranscriptVTT(segments))
 	default:
 		return fmt.Errorf("unknown format %q: use text, json, srt, or vtt", format)
 	}
 	return nil
-}
-
-// timeLabel returns the timestamp string for a segment based on the useSeconds flag.
-func timeLabel(seg episode.Segment, useSeconds bool) string {
-	if useSeconds {
-		return strconv.FormatFloat(seg.Start/1000, 'f', -1, 64)
-	}
-	return seg.Time
-}
-
-// segmentEnd returns the end timestamp (ms) for a segment, falling back to start+2s.
-func segmentEnd(seg episode.Segment) float64 {
-	if seg.End > seg.Start {
-		return seg.End
-	}
-	return seg.Start + 2000
-}
-
-// msToTimestamp converts milliseconds to "HH:MM:SS" + sep + "mmm".
-func msToTimestamp(ms float64, sep byte) string {
-	total := int(ms)
-	millis := total % 1000
-	total /= 1000
-	secs := total % 60
-	total /= 60
-	mins := total % 60
-	hours := total / 60
-	return fmt.Sprintf("%02d:%02d:%02d%c%03d", hours, mins, secs, sep, millis)
-}
-
-func printTranscriptText(segments []episode.Segment, useSeconds bool) {
-	for _, seg := range segments {
-		t := timeLabel(seg, useSeconds)
-		if seg.Speaker != "" {
-			fmt.Printf("[%s] - %s: %s\n", t, seg.Speaker, seg.Content)
-		} else {
-			fmt.Printf("[%s] - %s\n", t, seg.Content)
-		}
-	}
-}
-
-func printTranscriptJSON(segments []episode.Segment, useSeconds bool) error {
-	type jsonSegment struct {
-		Start   any    `json:"start"`
-		Speaker string `json:"speaker,omitempty"`
-		Content string `json:"content"`
-	}
-
-	out := make([]jsonSegment, len(segments))
-	for i, seg := range segments {
-		var start any
-		if useSeconds {
-			start = seg.Start / 1000
-		} else {
-			start = seg.Time
-		}
-		out[i] = jsonSegment{Start: start, Speaker: seg.Speaker, Content: seg.Content}
-	}
-
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
-}
-
-func printTranscriptSRT(segments []episode.Segment) {
-	for i, seg := range segments {
-		fmt.Printf("%d\n%s --> %s\n",
-			i+1,
-			msToTimestamp(seg.Start, ','),
-			msToTimestamp(segmentEnd(seg), ','),
-		)
-		if seg.Speaker != "" {
-			fmt.Printf("%s: %s\n", seg.Speaker, seg.Content)
-		} else {
-			fmt.Println(seg.Content)
-		}
-		fmt.Println()
-	}
-}
-
-func printTranscriptVTT(segments []episode.Segment) {
-	fmt.Println("WEBVTT")
-	fmt.Println()
-	for _, seg := range segments {
-		fmt.Printf("%s --> %s\n",
-			msToTimestamp(seg.Start, '.'),
-			msToTimestamp(segmentEnd(seg), '.'),
-		)
-		if seg.Speaker != "" {
-			fmt.Printf("%s: %s\n", seg.Speaker, seg.Content)
-		} else {
-			fmt.Println(seg.Content)
-		}
-		fmt.Println()
-	}
 }
 
 func runGetSummary(cmd *cobra.Command, args []string) error {
@@ -257,15 +163,7 @@ func runGetSummary(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if result.Summary != "" {
-		fmt.Println(result.Summary)
-	}
-	if len(result.Takeaways) > 0 {
-		fmt.Println("\nTakeaways:")
-		for i, t := range result.Takeaways {
-			fmt.Printf("%d. %s\n", i+1, t)
-		}
-	}
+	fmt.Print(result.FormatSummary())
 	return nil
 }
 
@@ -274,23 +172,7 @@ func runGetQA(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(result.QAs) == 0 {
-		fmt.Println("(no Q&A available)")
-		return nil
-	}
-	for i, qa := range result.QAs {
-		if qa.QuestionSpeaker != "" {
-			fmt.Printf("Q%d [%s]: %s\n", i+1, qa.QuestionSpeaker, qa.Question)
-		} else {
-			fmt.Printf("Q%d: %s\n", i+1, qa.Question)
-		}
-		if qa.AnswerSpeaker != "" {
-			fmt.Printf("A%d [%s]: %s\n", i+1, qa.AnswerSpeaker, qa.Answer)
-		} else {
-			fmt.Printf("A%d: %s\n", i+1, qa.Answer)
-		}
-		fmt.Println()
-	}
+	fmt.Print(result.FormatQA())
 	return nil
 }
 
@@ -299,21 +181,7 @@ func runGetChapters(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(result.Chapters) == 0 {
-		fmt.Println("(no chapters available)")
-		return nil
-	}
-	for i, ch := range result.Chapters {
-		adLabel := ""
-		if ch.HasAds {
-			adLabel = " [ad]"
-		}
-		fmt.Printf("### [%s] Chapter %d: %s%s\n\n", ch.Time, i+1, ch.Title, adLabel)
-		if ch.Summary != "" {
-			fmt.Printf("%s\n", ch.Summary)
-		}
-		fmt.Println()
-	}
+	fmt.Print(result.FormatChapters())
 	return nil
 }
 
@@ -322,11 +190,7 @@ func runGetMindmap(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if result.Mindmap == "" {
-		fmt.Println("(no mind map available)")
-		return nil
-	}
-	fmt.Println(result.Mindmap)
+	fmt.Println(result.FormatMindmap())
 	return nil
 }
 
@@ -335,13 +199,7 @@ func runGetHighlights(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(result.Highlights) == 0 {
-		fmt.Println("(no highlights available)")
-		return nil
-	}
-	for i, h := range result.Highlights {
-		fmt.Printf("%d. [%s] %s\n", i+1, h.Time, h.Content)
-	}
+	fmt.Print(result.FormatHighlights())
 	return nil
 }
 
@@ -350,15 +208,7 @@ func runGetKeywords(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(result.Keywords) == 0 {
-		fmt.Println("(no keywords available)")
-		return nil
-	}
-	for i, kw := range result.Keywords {
-		if kw.Desc != "" {
-			fmt.Printf("%d. **%s**: %s\n", i+1, kw.Key, kw.Desc)
-		}
-	}
+	fmt.Print(result.FormatKeywords())
 	return nil
 }
 

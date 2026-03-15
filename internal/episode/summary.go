@@ -3,6 +3,7 @@ package episode
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
@@ -58,6 +59,100 @@ type SummaryResult struct {
 	Titles       []string      `json:"titles"`
 	Intros       []string      `json:"intros"`
 	Timestamps   []string      `json:"timestamps"`
+}
+
+// FormatSummary returns the summary text followed by a numbered takeaway list.
+// Returns an empty string when both summary and takeaways are absent.
+func (r *SummaryResult) FormatSummary() string {
+	var sb strings.Builder
+	if r.Summary != "" {
+		sb.WriteString(r.Summary)
+	}
+	if len(r.Takeaways) > 0 {
+		sb.WriteString("\n\nTakeaways:\n")
+		for i, t := range r.Takeaways {
+			fmt.Fprintf(&sb, "%d. %s\n", i+1, t)
+		}
+	}
+	return sb.String()
+}
+
+// FormatQA returns Q&A pairs as formatted text, or a placeholder when none exist.
+func (r *SummaryResult) FormatQA() string {
+	if len(r.QAs) == 0 {
+		return "(no Q&A available)"
+	}
+	var sb strings.Builder
+	for i, qa := range r.QAs {
+		if qa.QuestionSpeaker != "" {
+			fmt.Fprintf(&sb, "Q%d [%s]: %s\n", i+1, qa.QuestionSpeaker, qa.Question)
+		} else {
+			fmt.Fprintf(&sb, "Q%d: %s\n", i+1, qa.Question)
+		}
+		if qa.AnswerSpeaker != "" {
+			fmt.Fprintf(&sb, "A%d [%s]: %s\n\n", i+1, qa.AnswerSpeaker, qa.Answer)
+		} else {
+			fmt.Fprintf(&sb, "A%d: %s\n\n", i+1, qa.Answer)
+		}
+	}
+	return sb.String()
+}
+
+// FormatChapters returns chapters as a Markdown-style list, or a placeholder when none exist.
+// Ad chapters are labelled [ad].
+func (r *SummaryResult) FormatChapters() string {
+	if len(r.Chapters) == 0 {
+		return "(no chapters available)"
+	}
+	var sb strings.Builder
+	for i, ch := range r.Chapters {
+		adLabel := ""
+		if ch.HasAds {
+			adLabel = " [ad]"
+		}
+		fmt.Fprintf(&sb, "### [%s] Chapter %d: %s%s\n\n", ch.Time, i+1, ch.Title, adLabel)
+		if ch.Summary != "" {
+			fmt.Fprintf(&sb, "%s\n", ch.Summary)
+		}
+		sb.WriteByte('\n')
+	}
+	return sb.String()
+}
+
+// FormatMindmap returns the mind map markdown, or a placeholder when unavailable.
+func (r *SummaryResult) FormatMindmap() string {
+	if r.Mindmap == "" {
+		return "(no mind map available)"
+	}
+	return r.Mindmap
+}
+
+// FormatHighlights returns numbered highlights with timestamps, or a placeholder when none exist.
+func (r *SummaryResult) FormatHighlights() string {
+	if len(r.Highlights) == 0 {
+		return "(no highlights available)"
+	}
+	var sb strings.Builder
+	for i, h := range r.Highlights {
+		fmt.Fprintf(&sb, "%d. [%s] %s\n", i+1, h.Time, h.Content)
+	}
+	return sb.String()
+}
+
+// FormatKeywords returns numbered keywords with optional descriptions, or a placeholder when none exist.
+func (r *SummaryResult) FormatKeywords() string {
+	if len(r.Keywords) == 0 {
+		return "(no keywords available)"
+	}
+	var sb strings.Builder
+	for i, kw := range r.Keywords {
+		if kw.Desc != "" {
+			fmt.Fprintf(&sb, "%d. **%s**: %s\n", i+1, kw.Key, kw.Desc)
+		} else {
+			fmt.Fprintf(&sb, "%d. **%s**\n", i+1, kw.Key)
+		}
+	}
+	return sb.String()
 }
 
 type summaryResponse struct {

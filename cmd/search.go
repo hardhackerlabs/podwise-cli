@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/config"
@@ -56,51 +54,15 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(result.Hits) == 0 {
-		if searchJSONOutput {
-			fmt.Println("[]")
-		} else {
-			fmt.Println("(no results found)")
+	if searchJSONOutput {
+		data, err := result.FormatJSON()
+		if err != nil {
+			return err
 		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	if searchJSONOutput {
-		type jsonHit struct {
-			Title       string `json:"title"`
-			PodcastName string `json:"podcast_name"`
-			PublishDate string `json:"publish_date"`
-			EpisodeURL  string `json:"episode_url"`
-			Description string `json:"description,omitempty"`
-		}
-		hits := make([]jsonHit, 0, len(result.Hits))
-		for _, hit := range result.Hits {
-			hits = append(hits, jsonHit{
-				Title:       hit.Title,
-				PodcastName: hit.PodcastName,
-				PublishDate: time.Unix(hit.PublishTime, 0).Format("2006-01-02"),
-				EpisodeURL:  episode.BuildEpisodeURL(hit.Seq),
-				Description: hit.Content,
-			})
-		}
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		enc.SetIndent("", "  ")
-		return enc.Encode(hits)
-	}
-
-	fmt.Printf("# Search: \"%s\"\n\n", query)
-	fmt.Printf("**Found:** %d\n\n", len(result.Hits))
-	fmt.Println("---")
-	for i, hit := range result.Hits {
-		publishDate := time.Unix(hit.PublishTime, 0).Format("2006-01-02")
-		fmt.Printf("\n## %d. %s\n\n", i+1, hit.Title)
-		fmt.Printf("- **Podcast:** %s\n", hit.PodcastName)
-		fmt.Printf("- **Published:** %s\n", publishDate)
-		fmt.Printf("- **Episode URL:** %s\n", episode.BuildEpisodeURL(hit.Seq))
-		if hit.Content != "" {
-			fmt.Printf("\n> %s\n", hit.Content)
-		}
-		fmt.Println("\n---")
-	}
+	fmt.Print(result.FormatText(query))
 	return nil
 }
