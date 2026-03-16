@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -163,61 +162,27 @@ func mcpProcess(ctx context.Context, req *mcp.CallToolRequest, in mcpProcessInpu
 		return nil, struct{}{}, err
 	}
 
-	var sb strings.Builder
-	var seq int
-
-	switch {
-	case episode.IsYouTubeURL(in.Input) || episode.IsXiaoyuzhouURL(in.Input):
-		result, err := episode.Import(ctx, client, in.Input)
-		if err != nil {
-			var apiErr *api.APIError
-			if errors.As(err, &apiErr) {
-				switch apiErr.ErrCode {
-				case "private_episode":
-					return nil, struct{}{}, fmt.Errorf("episode is private and cannot be imported")
-				case "not_found":
-					return nil, struct{}{}, fmt.Errorf("video not found: %s", in.Input)
-				case "conflict":
-					return nil, struct{}{}, fmt.Errorf("import conflict detected, please contact support@podwise.ai")
-				case "fetch_error":
-					return nil, struct{}{}, fmt.Errorf("failed to fetch episode data, please try again later")
-				}
-			}
-			return nil, struct{}{}, fmt.Errorf("import failed: %w", err)
-		}
-		seq = result.Seq
-		fmt.Fprintf(&sb, "Imported: %q (%s)\nEpisode URL: %s\n\n", result.Title, result.PodcastName, episode.BuildEpisodeURL(seq))
-
-	case episode.IsLocalMediaFile(in.Input):
-		title := in.Title
-		if title == "" {
-			base := filepath.Base(in.Input)
-			title = strings.TrimSuffix(base, filepath.Ext(base))
-		}
-		result, err := episode.Upload(ctx, client, episode.UploadOptions{
-			Title:    title,
-			FilePath: in.Input,
-			Keywords: in.Hotwords,
-		})
-		if err != nil {
-			var cleanupErr *episode.UploadCleanupError
-			if errors.As(err, &cleanupErr) && cleanupErr.CleanupErr != nil {
-				fmt.Fprintf(&sb, "Warning: orphaned storage object %q — cleanup failed: %v\n", cleanupErr.StoragePath, cleanupErr.CleanupErr)
-			}
-			return nil, struct{}{}, fmt.Errorf("upload failed: %w", err)
-		}
-		seq = result.Seq
-		fmt.Fprintf(&sb, "Uploaded: %q\nEpisode URL: %s\n\n", result.Title, episode.BuildEpisodeURL(seq))
-
-	default:
-		seq, err = episode.ParseSeq(in.Input)
-		if err != nil {
-			return nil, struct{}{}, fmt.Errorf("invalid input: %w", err)
-		}
-		fmt.Fprintf(&sb, "Episode URL: %s\n\n", episode.BuildEpisodeURL(seq))
+	resolved, err := episode.ResolveInput(ctx, client, in.Input, episode.ResolveOptions{
+		Title:    in.Title,
+		Hotwords: in.Hotwords,
+	})
+	if err != nil {
+		return nil, struct{}{}, err
 	}
 
-	processResult, err := episode.SubmitProcess(ctx, client, seq)
+	var sb strings.Builder
+
+	episodeURL := episode.BuildEpisodeURL(resolved.Seq)
+	switch resolved.Kind {
+	case episode.KindImport:
+		fmt.Fprintf(&sb, "Imported: %q (%s)\nEpisode URL: %s\n\n", resolved.Import.Title, resolved.Import.PodcastName, episodeURL)
+	case episode.KindUpload:
+		fmt.Fprintf(&sb, "Uploaded: %q\nEpisode URL: %s\n\n", resolved.Upload.Title, episodeURL)
+	case episode.KindExisting:
+		fmt.Fprintf(&sb, "Episode URL: %s\n\n", episodeURL)
+	}
+
+	processResult, err := episode.SubmitProcess(ctx, client, resolved.Seq)
 	if err != nil {
 		return nil, struct{}{}, err
 	}
@@ -227,9 +192,9 @@ func mcpProcess(ctx context.Context, req *mcp.CallToolRequest, in mcpProcessInpu
 		return textResult(sb.String()), struct{}{}, nil
 	}
 
-	// Poll until done or timeout (10 min, 30s interval).
+	// Poll until done or timeout (20 min, 30s interval).
 	const pollInterval = 30 * time.Second
-	const pollTimeout = 10 * time.Minute
+	const pollTimeout = 20 * time.Minute
 
 	deadline := time.Now().Add(pollTimeout)
 	ticker := time.NewTicker(pollInterval)
@@ -242,9 +207,9 @@ func mcpProcess(ctx context.Context, req *mcp.CallToolRequest, in mcpProcessInpu
 
 	for range ticker.C {
 		if time.Now().After(deadline) {
-			return nil, struct{}{}, fmt.Errorf("timed out after %s waiting for episode %s to finish processing", pollTimeout, episode.BuildEpisodeURL(seq))
+			return nil, struct{}{}, fmt.Errorf("timed out after %s waiting for episode %s to finish processing", pollTimeout, episode.BuildEpisodeURL(resolved.Seq))
 		}
-		status, err := episode.FetchStatus(ctx, client, seq)
+		status, err := episode.FetchStatus(ctx, client, resolved.Seq)
 		if err != nil {
 			return nil, struct{}{}, err
 		}
@@ -257,7 +222,7 @@ func mcpProcess(ctx context.Context, req *mcp.CallToolRequest, in mcpProcessInpu
 			fmt.Fprintf(&sb, "\nProcessing complete. Use get_transcript, get_summary, etc. to retrieve results.")
 			return textResult(sb.String()), struct{}{}, nil
 		case "failed":
-			return nil, struct{}{}, fmt.Errorf("processing failed for episode %s", episode.BuildEpisodeURL(seq))
+			return nil, struct{}{}, fmt.Errorf("processing failed for episode %s", episode.BuildEpisodeURL(resolved.Seq))
 		case "processing":
 			// continue polling
 		}

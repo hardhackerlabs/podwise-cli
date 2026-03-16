@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
@@ -79,25 +77,34 @@ func runProcess(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	startTime := time.Now()
 
-	var seq int
-
+	// Print an action-specific preamble before the (potentially slow) API call.
 	switch {
 	case episode.IsYouTubeURL(input) || episode.IsXiaoyuzhouURL(input):
-		seq, err = importEpisode(ctx, client, input)
-		if err != nil {
-			return err
-		}
+		fmt.Printf("Importing episode from %s ...\n", input)
 	case episode.IsLocalMediaFile(input):
-		seq, err = uploadEpisode(ctx, client, input, processTitle, processHotwords)
-		if err != nil {
-			return err
-		}
-	default:
-		seq, err = episode.ParseSeq(input)
-		if err != nil {
-			return fmt.Errorf("invalid episode: %w", err)
-		}
+		fmt.Printf("Uploading %s ...\n", input)
 	}
+
+	resolved, err := episode.ResolveInput(ctx, client, input, episode.ResolveOptions{
+		Title:    processTitle,
+		Hotwords: processHotwords,
+	})
+	if err != nil {
+		var cleanupErr *episode.UploadCleanupError
+		if errors.As(err, &cleanupErr) && cleanupErr.CleanupErr != nil {
+			fmt.Printf("warning: orphaned storage object %q — cleanup failed: %v\n", cleanupErr.StoragePath, cleanupErr.CleanupErr)
+		}
+		return err
+	}
+
+	switch resolved.Kind {
+	case episode.KindImport:
+		fmt.Printf("Imported: %q (%s) → episode: %s\n\n", resolved.Import.Title, resolved.Import.PodcastName, episode.BuildEpisodeURL(resolved.Seq))
+	case episode.KindUpload:
+		fmt.Printf("Uploaded: %q → episode: %s\n\n", resolved.Upload.Title, episode.BuildEpisodeURL(resolved.Seq))
+	}
+
+	seq := resolved.Seq
 
 	if processPollInterval < 30*time.Second {
 		processPollInterval = 30 * time.Second
@@ -176,56 +183,6 @@ func printProcessStatus(r *episode.ProcessResult, maxProgress float64) {
 	default:
 		fmt.Printf("  [%s] ? %s\n", ts, r.Status)
 	}
-}
-
-// uploadEpisode uploads a local media file to Podwise and returns the episode seq.
-// title defaults to the filename stem when empty.
-func uploadEpisode(ctx context.Context, client *api.Client, filePath, title, keywords string) (int, error) {
-	if title == "" {
-		base := filepath.Base(filePath)
-		title = strings.TrimSuffix(base, filepath.Ext(base))
-	}
-	fmt.Printf("Uploading %s ...\n", filePath)
-	result, err := episode.Upload(ctx, client, episode.UploadOptions{
-		Title:    title,
-		FilePath: filePath,
-		Keywords: keywords,
-	})
-	if err != nil {
-		var cleanupErr *episode.UploadCleanupError
-		if errors.As(err, &cleanupErr) && cleanupErr.CleanupErr != nil {
-			fmt.Printf("warning: orphaned storage object %q — cleanup failed: %v\n", cleanupErr.StoragePath, cleanupErr.CleanupErr)
-		}
-		return 0, fmt.Errorf("upload failed: %w", err)
-	}
-	fmt.Printf("Uploaded: %q → episode: %s\n\n", result.Title, episode.BuildEpisodeURL(result.Seq))
-	return result.Seq, nil
-}
-
-// importEpisode imports a YouTube or Xiaoyuzhou URL into Podwise and returns
-// the resolved episode seq. It prints a status line and translates well-known
-// API error codes into user-friendly messages.
-func importEpisode(ctx context.Context, client *api.Client, rawURL string) (int, error) {
-	fmt.Printf("Importing episode from %s ...\n", rawURL)
-	result, err := episode.Import(ctx, client, rawURL)
-	if err != nil {
-		var apiErr *api.APIError
-		if errors.As(err, &apiErr) {
-			switch apiErr.ErrCode {
-			case "private_episode":
-				return 0, fmt.Errorf("episode is private and cannot be imported")
-			case "not_found":
-				return 0, fmt.Errorf("video not found: %s", rawURL)
-			case "conflict":
-				return 0, fmt.Errorf("import conflict detected, please contact support@podwise.ai")
-			case "fetch_error":
-				return 0, fmt.Errorf("failed to fetch episode data, please try again later")
-			}
-		}
-		return 0, fmt.Errorf("import failed: %w", err)
-	}
-	fmt.Printf("Imported: %q (%s) → episode: %s\n\n", result.Title, result.PodcastName, episode.BuildEpisodeURL(result.Seq))
-	return result.Seq, nil
 }
 
 func printProcessDoneHint(seq int, elapsed time.Duration) {
