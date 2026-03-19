@@ -10,21 +10,48 @@ import (
 
 const defaultAPIBaseURL = "https://podwise.ai/api"
 
+// DefaultGlamourStyle is the glamour style used when none is configured.
+const DefaultGlamourStyle = "dark"
+
+// ValidGlamourStyles lists every built-in glamour style that can be selected.
+// See: https://github.com/charmbracelet/glamour/tree/main/styles/gallery
+var ValidGlamourStyles = []string{
+	"dark",
+	"light",
+	"dracula",
+	"tokyo-night",
+	"ascii",
+	"notty",
+	"pink",
+}
+
+// IsValidGlamourStyle reports whether s is a recognised glamour style name.
+func IsValidGlamourStyle(s string) bool {
+	for _, v := range ValidGlamourStyles {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
 // Config holds all application-level settings.
 //
 // Priority (highest → lowest):
 //
 //	environment variables > config file > built-in defaults
 type Config struct {
-	APIKey     string `toml:"api_key"`
-	APIBaseURL string `toml:"api_base_url"`
+	APIKey       string `toml:"api_key"`
+	APIBaseURL   string `toml:"api_base_url"`
+	GlamourStyle string `toml:"glamour_style"`
 }
 
 // Load returns the effective Config by merging the config file and
 // environment variables. Env vars always win over the file.
 func Load() (*Config, error) {
 	cfg := &Config{
-		APIBaseURL: defaultAPIBaseURL,
+		APIBaseURL:   defaultAPIBaseURL,
+		GlamourStyle: DefaultGlamourStyle,
 	}
 
 	if err := loadFile(cfg); err != nil {

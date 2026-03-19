@@ -43,11 +43,11 @@ func (r *SearchResult) FormatText(query string) string {
 	fmt.Fprintf(&sb, "**Found:** %d\n\n---\n", len(r.Hits))
 	for i, hit := range r.Hits {
 		publishDate := time.Unix(hit.PublishTime, 0).Format("2006-01-02")
-		fmt.Fprintf(&sb, "\n## %d. %s\n\n", i+1, hit.Title)
+		fmt.Fprintf(&sb, "\n%d. %s\n\n", i+1, hit.Title)
 		fmt.Fprintf(&sb, "- **Podcast:** %s\n", hit.PodcastName)
 		fmt.Fprintf(&sb, "- **Published:** %s\n", publishDate)
 		fmt.Fprintf(&sb, "- **Episode URL:** %s\n", BuildEpisodeURL(hit.Seq))
-		sb.WriteString("\n---\n")
+		sb.WriteString("\n")
 	}
 	return sb.String()
 }

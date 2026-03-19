@@ -37,7 +37,7 @@ func (r *PopularResult) FormatText() string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# Trending Episodes\n\n**Total:** %d\n\n---\n", len(r.Episodes))
 	for i, ep := range r.Episodes {
-		fmt.Fprintf(&sb, "\n## %d. %s\n\n", i+1, ep.Title)
+		fmt.Fprintf(&sb, "\n%d. %s\n\n", i+1, ep.Title)
 		fmt.Fprintf(&sb, "- **Podcast:** %s\n", ep.PodcastName)
 		fmt.Fprintf(&sb, "- **Episode URL:** %s\n", BuildEpisodeURL(ep.Seq))
 		if ep.LinkType == "youtube" {
@@ -45,7 +45,7 @@ func (r *PopularResult) FormatText() string {
 		} else {
 			fmt.Fprintf(&sb, "- **Is YouTube:** %s\n", "No")
 		}
-		sb.WriteString("\n---\n")
+		sb.WriteString("\n")
 	}
 	return sb.String()
 }

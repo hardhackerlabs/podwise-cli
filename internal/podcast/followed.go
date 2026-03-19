@@ -41,14 +41,14 @@ func (r *FollowedPodcastsResult) FormatText(date string, days int) string {
 	fmt.Fprintf(&sb, "**Date:** up to %s  **Days:** %d  **Total:** %d\n\n---\n", date, days, len(r.Podcasts))
 	for i, p := range r.Podcasts {
 		lastPublish := time.Unix(p.LastPublishTime, 0).Format("2006-01-02")
-		fmt.Fprintf(&sb, "\n## %d. %s\n\n", i+1, p.Name)
+		fmt.Fprintf(&sb, "\n%d. %s\n\n", i+1, p.Name)
 		fmt.Fprintf(&sb, "- **Owner:** %s\n", p.Owner)
 		fmt.Fprintf(&sb, "- **Last Published:** %s\n", lastPublish)
 		if p.IsStarred {
 			fmt.Fprintf(&sb, "- **Starred:** Yes\n")
 		}
 		fmt.Fprintf(&sb, "- **Podcast URL:** %s\n", BuildPodcastURL(p.Seq))
-		sb.WriteString("\n---\n")
+		sb.WriteString("\n")
 	}
 	return sb.String()
 }

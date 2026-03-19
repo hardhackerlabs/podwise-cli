@@ -133,7 +133,7 @@ func runListFollowedEpisodes(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print(result.FormatText(date, days))
+	printMarkdown(cmd, result.FormatText(date, days))
 	return nil
 }
 
@@ -182,6 +182,6 @@ func runListFollowedPodcasts(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print(result.FormatText(date, days))
+	printMarkdown(cmd, result.FormatText(date, days))
 	return nil
 }

@@ -60,6 +60,6 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "Done in %s\n\n", utils.FormatDuration(time.Since(start)))
-	fmt.Print(result.FormatText(question, askShowSources))
+	printMarkdownAnswer(cmd, result.FormatText(question, askShowSources))
 	return nil
 }

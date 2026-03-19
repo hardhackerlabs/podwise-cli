@@ -49,7 +49,7 @@ func (r *PodcastEpisodesResult) FormatText(date string, days int) string {
 	fmt.Fprintf(&sb, "**Date:** up to %s  **Days:** %d  **Total:** %d\n\n---\n", date, days, len(r.Episodes))
 	for i, ep := range r.Episodes {
 		publishDate := time.Unix(ep.PublishTime, 0).Format("2006-01-02")
-		fmt.Fprintf(&sb, "\n## %d. %s\n\n", i+1, ep.Title)
+		fmt.Fprintf(&sb, "\n%d. %s\n\n", i+1, ep.Title)
 		fmt.Fprintf(&sb, "- **Published:** %s\n", publishDate)
 		if ep.Duration != nil && *ep.Duration != "" {
 			fmt.Fprintf(&sb, "- **Duration:** %s\n", *ep.Duration)
@@ -63,7 +63,7 @@ func (r *PodcastEpisodesResult) FormatText(date string, days int) string {
 		}
 		fmt.Fprintf(&sb, "- **Processed:** %s\n", processedLabel)
 		fmt.Fprintf(&sb, "- **Episode URL:** %s\n", episode.BuildEpisodeURL(ep.Seq))
-		sb.WriteString("\n---\n")
+		sb.WriteString("\n")
 	}
 	return sb.String()
 }

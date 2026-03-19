@@ -57,6 +57,6 @@ func runPopular(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print(result.FormatText())
+	printMarkdown(cmd, result.FormatText())
 	return nil
 }

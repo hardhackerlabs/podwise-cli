@@ -9,6 +9,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// prettyOutput is the global flag that enables glamour markdown rendering.
+var prettyOutput bool
+
 var rootCmd = &cobra.Command{
 	Use:          "podwise",
 	Short:        "podwise — AI podcast & YouTube insights from your terminal",
@@ -93,6 +96,8 @@ func isTerminal(f *os.File) bool {
 }
 
 func init() {
+	rootCmd.PersistentFlags().BoolVar(&prettyOutput, "pretty", false, "render markdown output with terminal styling")
+
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(processCmd)
 	rootCmd.AddCommand(askCmd)

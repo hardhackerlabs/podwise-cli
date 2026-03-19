@@ -163,7 +163,7 @@ func runGetSummary(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Print(result.FormatSummary())
+	printMarkdown(cmd, result.FormatSummary())
 	return nil
 }
 
@@ -172,7 +172,7 @@ func runGetQA(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Print(result.FormatQA())
+	printMarkdown(cmd, result.FormatQA())
 	return nil
 }
 
@@ -181,7 +181,7 @@ func runGetChapters(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Print(result.FormatChapters())
+	printMarkdown(cmd, result.FormatChapters())
 	return nil
 }
 
@@ -190,7 +190,7 @@ func runGetMindmap(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(result.FormatMindmap())
+	printMarkdown(cmd, result.FormatMindmap())
 	return nil
 }
 
@@ -199,7 +199,7 @@ func runGetHighlights(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Print(result.FormatHighlights())
+	printMarkdown(cmd, result.FormatHighlights())
 	return nil
 }
 
@@ -208,7 +208,7 @@ func runGetKeywords(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Print(result.FormatKeywords())
+	printMarkdown(cmd, result.FormatKeywords())
 	return nil
 }
 

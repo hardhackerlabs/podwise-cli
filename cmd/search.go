@@ -99,7 +99,7 @@ func runSearchEpisode(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print(result.FormatText(query))
+	printMarkdown(cmd, result.FormatText(query))
 	return nil
 }
 
@@ -125,6 +125,6 @@ func runSearchPodcast(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Print(result.FormatText(query))
+	printMarkdown(cmd, result.FormatText(query))
 	return nil
 }

@@ -67,7 +67,7 @@ func (r *Result) FormatText(question string, showSources bool) string {
 	if showSources && len(r.Sources) > 0 {
 		sb.WriteString("\n---\n\n## Sources\n\n")
 		for i, src := range r.Sources {
-			fmt.Fprintf(&sb, "### %d. %s\n", i+1, src.Title)
+			fmt.Fprintf(&sb, "%d. %s\n\n", i+1, src.Title)
 			fmt.Fprintf(&sb, "- **Timestamp:** %s\n", utils.FormatTimestampMs(src.StartTime))
 			fmt.Fprintf(&sb, "- **Episode URL:** %s\n", episode.BuildEpisodeURL(src.EpSeq))
 			fmt.Fprintf(&sb, "\n%s\n", src.Text)

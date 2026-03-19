@@ -85,9 +85,9 @@ func (r *SummaryResult) FormatQA() string {
 	var sb strings.Builder
 	for i, qa := range r.QAs {
 		if qa.QuestionSpeaker != "" {
-			fmt.Fprintf(&sb, "Q%d [%s]: %s\n", i+1, qa.QuestionSpeaker, qa.Question)
+			fmt.Fprintf(&sb, "### Q%d [%s]: %s\n", i+1, qa.QuestionSpeaker, qa.Question)
 		} else {
-			fmt.Fprintf(&sb, "Q%d: %s\n", i+1, qa.Question)
+			fmt.Fprintf(&sb, "### Q%d: %s\n", i+1, qa.Question)
 		}
 		if qa.AnswerSpeaker != "" {
 			fmt.Fprintf(&sb, "A%d [%s]: %s\n\n", i+1, qa.AnswerSpeaker, qa.Answer)

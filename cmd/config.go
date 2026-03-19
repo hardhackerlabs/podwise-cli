@@ -47,25 +47,26 @@ var configShowCmd = &cobra.Command{
 
 		maskedKey := maskAPIKey(cfg.APIKey)
 
-		fmt.Printf("config file : %s\n", path)
-		fmt.Printf("api_key     : %s\n", maskedKey)
-		fmt.Printf("api_base_url: %s\n", cfg.APIBaseURL)
+		fmt.Printf("config file   : %s\n", path)
+		fmt.Printf("api_key       : %s\n", maskedKey)
+		fmt.Printf("api_base_url  : %s\n", cfg.APIBaseURL)
+		fmt.Printf("glamour_style : %s\n", cfg.GlamourStyle)
 
 		if cfg.APIKey == "" {
-			fmt.Printf("user_id     : (api_key not set)\n")
-			fmt.Printf("status      : ✗ configuration invalid\n")
+			fmt.Printf("user_id       : (api_key not set)\n")
+			fmt.Printf("status        : ✗ configuration invalid\n")
 			return nil
 		}
 
 		client := api.New(cfg.APIBaseURL, cfg.APIKey)
 		var me meResponse
 		if err := client.Get(context.Background(), "/open/v1/me", nil, &me); err != nil {
-			fmt.Printf("user_id     : (failed to fetch: %v)\n", err)
-			fmt.Printf("status      : ✗ configuration invalid\n")
+			fmt.Printf("user_id       : (failed to fetch: %v)\n", err)
+			fmt.Printf("status        : ✗ configuration invalid\n")
 			return nil
 		}
-		fmt.Printf("user_id     : %s\n", me.Result.UserID)
-		fmt.Printf("status      : ✓ configuration ok\n")
+		fmt.Printf("user_id       : %s\n", me.Result.UserID)
+		fmt.Printf("status        : ✓ configuration ok\n")
 
 		return nil
 	},
@@ -80,13 +81,17 @@ var configSetCmd = &cobra.Command{
 Available keys:
   api_key       Your podwise.ai API key
   api_base_url  API base URL (default: https://podwise.ai/api)
+  glamour_style Markdown render style for --pretty output
+                Valid values: dark, light, dracula, tokyo-night, ascii, notty, pink
+                (default: dark)
 
 To create or find your API key, visit:
   https://podwise.ai/dashboard/settings/developer
 
 Examples:
   podwise config set api_key sk-xxxx
-  podwise config set api_base_url https://podwise.ai/api`,
+  podwise config set api_base_url https://podwise.ai/api
+  podwise config set glamour_style dracula`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		key, value := args[0], args[1]
@@ -101,6 +106,11 @@ Examples:
 			cfg.APIKey = value
 		case "api_base_url":
 			cfg.APIBaseURL = value
+		case "glamour_style":
+			if !config.IsValidGlamourStyle(value) {
+				return fmt.Errorf("invalid glamour_style %q — valid values: dark, light, dracula, tokyo-night, ascii, notty, pink", value)
+			}
+			cfg.GlamourStyle = value
 		default:
 			return fmt.Errorf("unknown config key %q", key)
 		}
