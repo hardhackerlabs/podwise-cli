@@ -101,7 +101,7 @@ For more details on all available commands and flags, run:
 podwise --help
 ```
 
-## 🤖 Agent Skills
+## Agent Skills
 
 > **Prerequisites:** Before installing skills, make sure you have completed the [Installation](#installation) and [Configuration](#configuration) steps above — the `podwise` CLI must be installed and your `api_key` must be set.
 
@@ -113,7 +113,7 @@ curl -sL https://raw.githubusercontent.com/hardhackerlabs/podwise-cli/main/insta
 
 You can also build your own skills on top of the `podwise` CLI to create custom workflows that fit your needs.
 
-## 🔌 MCP Server
+## MCP Server
 
 Podwise exposes all its capabilities as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server, allowing AI assistants (Gemini CLI, Claude Desktop, Cursor, etc.) to search episodes, process media, and retrieve AI-generated content directly as tools.
 

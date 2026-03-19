@@ -96,6 +96,8 @@ func init() {
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(processCmd)
 	rootCmd.AddCommand(searchCmd)
+	rootCmd.AddCommand(popularCmd)
+	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(mcpCmd)
 }
