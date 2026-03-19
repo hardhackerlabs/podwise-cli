@@ -12,6 +12,15 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage podwise configuration",
+	Long: `Manage podwise configuration.
+
+To get started, set your API key:
+  podwise config set api_key <your-api-key>
+
+You can create or find your API key at:
+  https://podwise.ai/dashboard/settings/
+
+Use "podwise config show" to verify your current configuration.`,
 }
 
 // meResponse is the response from the /me endpoint.
@@ -71,6 +80,9 @@ var configSetCmd = &cobra.Command{
 Available keys:
   api_key       Your podwise.ai API key
   api_base_url  API base URL (default: https://podwise.ai/api)
+
+To create or find your API key, visit:
+  https://podwise.ai/dashboard/settings/
 
 Examples:
   podwise config set api_key sk-xxxx

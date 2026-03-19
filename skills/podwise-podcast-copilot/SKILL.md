@@ -27,14 +27,22 @@ If `podwise` is not installed yet, load [references/installation.md](references/
 
 ## Step 2: Choose the Workflow
 
+### Discover Content, Podcasts, Episodes
+
 - If the user wants to find episodes by title keywords, run `podwise search "<query>" --limit 10` or `podwise search episode "<query>" --limit 10`. Both search episode titles, and the direct `search "<query>"` form is backward-compatible shorthand for `search episode`.
 - If the user wants to find shows or podcast feeds by podcast name, run `podwise search podcast "<query>" --limit 10`.
 - If the user wants to discover what is currently trending across Podwise, run `podwise popular`, optionally with `--limit` or `--json`.
 - If the user wants to check updates from podcasts they already follow, run `podwise list followed-episodes` or `podwise list followed-podcasts`.
 - If the user wants a transcript-grounded answer across podcasts, run `podwise ask "<question>"`. Add `--sources` when they need cited excerpts and episode links.
+
+### Process an Episode
+
 - If the user provides a YouTube or Xiaoyuzhou URL, run `podwise process <url>`; Podwise will import it automatically.
 - If the user provides a local audio or video file path, run `podwise process <file>`; Podwise will upload it and create an episode automatically.
 - If the user provides a Podwise episode URL and processing may not be complete yet, run `podwise process <episode-url>`.
+
+### Retrieve AI Results
+
 - If the user wants a specific artifact for an already processed episode, run `podwise get <type> <episode-url>` directly.
 
 ## Step 3: Run the Commands
