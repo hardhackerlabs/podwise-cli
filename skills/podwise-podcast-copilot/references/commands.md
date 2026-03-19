@@ -1,14 +1,59 @@
 # Podwise CLI Command Reference
 
-## 1) Search Episodes
+## 1) Search Episodes or Podcasts
 
 ```bash
+# Backward-compatible episode search shorthand
 podwise search "<query>"
-podwise search "<query>" --limit 20
-podwise search "<query>" --json
+podwise search "<query>" --limit 10
+
+# Explicit episode search
+podwise search episode "<query>"
+podwise search episode "<query>" --limit 10
+podwise search episode "<query>" --limit 10 --json
+
+# Podcast search
+podwise search podcast "<query>"
+podwise search podcast "<query>" --limit 10
+podwise search podcast "<query>" --json
 ```
 
-## 2) Process Source URLs
+## 2) Discover Popular Episodes
+
+```bash
+podwise popular
+podwise popular --limit 10
+podwise popular --json
+```
+
+## 3) List Followed Podcast Updates
+
+```bash
+# Episodes from followed podcasts
+podwise list followed-episodes
+podwise list followed-episodes --date today
+podwise list followed-episodes --date yesterday
+podwise list followed-episodes --date 2026-03-01
+podwise list followed-episodes --latest 7
+podwise list followed-episodes --latest 7 --json
+
+# Followed podcasts with recent new episodes
+podwise list followed-podcasts
+podwise list followed-podcasts --date today
+podwise list followed-podcasts --date yesterday
+podwise list followed-podcasts --date 2026-03-01
+podwise list followed-podcasts --latest 14
+podwise list followed-podcasts --latest 14 --json
+```
+
+## 4) Ask Questions Across Transcripts
+
+```bash
+podwise ask "the future of AI agents"
+podwise ask "How does retrieval augmented generation work?" --sources
+```
+
+## 5) Process Source URLs
 
 ```bash
 # Podwise episode URL
@@ -27,14 +72,14 @@ podwise process ./meeting.wav --title "Meeting Recording"
 podwise process ./demo.mp4 --title "Product Launch Screen Recording" --hotwords "Podwise,LLM,ASR"
 ```
 
-## 3) Control Polling and Timeout
+## 6) Control Polling and Timeout
 
 ```bash
 podwise process <url> --interval 30s --timeout 30m
 podwise process <url> --no-wait
 ```
 
-## 4) Fetch Result Content
+## 7) Fetch Result Content
 
 ```bash
 podwise get transcript <episode-url>
@@ -51,14 +96,14 @@ podwise get highlights <episode-url>
 podwise get keywords <episode-url>
 ```
 
-## 5) Force Cache Refresh
+## 8) Force Cache Refresh
 
 ```bash
 podwise get summary <episode-url> --refresh
 podwise get transcript <episode-url> --refresh
 ```
 
-## 6) Configuration Management
+## 9) Configuration Management
 
 ```bash
 podwise config set api_key <your-sk-xxxx>
@@ -66,12 +111,30 @@ podwise config set api_base_url https://podwise.ai/api
 podwise config show
 ```
 
-## 7) Common Use Case Mappings
+## 10) Common Use Case Mappings
 
 ```bash
+# Use case: Discover trending episodes
+podwise popular --limit 10
+
+# Use case: Check new episodes from followed podcasts today
+podwise list followed-episodes --date today
+
+# Use case: Check which followed podcasts updated recently
+podwise list followed-podcasts --latest 7
+
+# Use case: Ask a question across podcast transcripts
+podwise ask "What are the biggest risks of agentic AI?" --sources
+
 # Use case: Process a URL and retrieve its summary
 podwise process "<input-url>"
 podwise get summary "<resolved-episode-url>"
+
+# Use case: Find episodes about a topic
+podwise search episode "AI agent" --limit 10
+
+# Use case: Find podcasts by show name
+podwise search podcast "Lex Fridman" --limit 10
 
 # Use case: Structured review and retrospective
 podwise get chapters "<resolved-episode-url>"
