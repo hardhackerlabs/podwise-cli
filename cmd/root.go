@@ -95,6 +95,7 @@ func isTerminal(f *os.File) bool {
 func init() {
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(processCmd)
+	rootCmd.AddCommand(askCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(popularCmd)
 	rootCmd.AddCommand(listCmd)
