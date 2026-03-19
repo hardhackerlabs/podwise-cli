@@ -20,9 +20,7 @@ var listCmd = &cobra.Command{
   podwise list followed-episodes --date yesterday
   podwise list followed-episodes --latest 3 --json
   podwise list followed-podcasts --date today
-  podwise list followed-podcasts --latest 14 --json
-  podwise list podcast https://podwise.ai/dashboard/podcasts/397
-  podwise list podcast https://podwise.ai/dashboard/podcasts/397 --latest 30 --json`,
+  podwise list followed-podcasts --latest 14 --json`,
 }
 
 const defaultFollowedLatest = 7
@@ -75,28 +73,6 @@ When --date is provided it takes priority and --latest is ignored.`,
 	RunE: runListFollowedPodcasts,
 }
 
-const defaultPodcastLatest = 30
-
-var listPodcastLatest int
-var listPodcastJSONOutput bool
-
-// podwise list podcast <podcast-url>
-var listPodcastCmd = &cobra.Command{
-	Use:   "podcast <podcast-url>",
-	Short: "List episodes for a specific podcast",
-	Long: `List episodes for a specific podcast within a date range, sorted by publish time (newest first).
-
-The podcast-url must be a Podwise podcast URL, e.g. https://podwise.ai/dashboard/podcasts/397.
-
-With no flags, shows episodes from the last 7 days ending today by default.
-Use --latest N to look back N days ending today (max 365).`,
-	Example: `  podwise list podcast https://podwise.ai/dashboard/podcasts/397
-  podwise list podcast https://podwise.ai/dashboard/podcasts/397 --latest 30
-  podwise list podcast https://podwise.ai/dashboard/podcasts/397 --latest 30 --json`,
-	Args: cobra.ExactArgs(1),
-	RunE: runListPodcast,
-}
-
 func init() {
 	listFollowedEpisodesCmd.Flags().StringVar(&followedEpisodesDate, "date", "", "show episodes for a specific day: today, yesterday, or YYYY-MM-DD (takes priority over --latest)")
 	listFollowedEpisodesCmd.Flags().IntVar(&followedEpisodesLatest, "latest", defaultFollowedLatest, "show the last N days ending today (max 30)")
@@ -107,10 +83,6 @@ func init() {
 	listFollowedPodcastsCmd.Flags().IntVar(&followedPodcastsLatest, "latest", defaultFollowedLatest, "show podcasts with new episodes in the last N days ending today (max 30)")
 	listFollowedPodcastsCmd.Flags().BoolVar(&followedPodcastsJSONOutput, "json", false, "output results as formatted JSON instead of markdown")
 	listCmd.AddCommand(listFollowedPodcastsCmd)
-
-	listPodcastCmd.Flags().IntVar(&listPodcastLatest, "latest", defaultPodcastLatest, "show episodes from the last N days ending today (max 365)")
-	listPodcastCmd.Flags().BoolVar(&listPodcastJSONOutput, "json", false, "output results as formatted JSON instead of markdown")
-	listCmd.AddCommand(listPodcastCmd)
 }
 
 func runListFollowedEpisodes(cmd *cobra.Command, args []string) error {
@@ -202,45 +174,6 @@ func runListFollowedPodcasts(cmd *cobra.Command, args []string) error {
 	}
 
 	if followedPodcastsJSONOutput {
-		data, err := result.FormatJSON()
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
-		return nil
-	}
-
-	fmt.Print(result.FormatText(date, days))
-	return nil
-}
-
-func runListPodcast(cmd *cobra.Command, args []string) error {
-	podcastSeq, err := podcast.ParseSeq(args[0])
-	if err != nil {
-		return fmt.Errorf("invalid podcast: %w", err)
-	}
-
-	if listPodcastLatest < 1 || listPodcastLatest > 365 {
-		return fmt.Errorf("--latest must be between 1 and 365")
-	}
-	date := episode.Today()
-	days := listPodcastLatest
-
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	if err := config.Validate(cfg); err != nil {
-		return err
-	}
-
-	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	result, err := podcast.FetchPodcastEpisodes(context.Background(), client, podcastSeq, date, days)
-	if err != nil {
-		return err
-	}
-
-	if listPodcastJSONOutput {
 		data, err := result.FormatJSON()
 		if err != nil {
 			return err

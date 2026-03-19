@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
+	"github.com/hardhacker/podwise-cli/internal/ask"
 	"github.com/hardhacker/podwise-cli/internal/config"
 	"github.com/hardhacker/podwise-cli/internal/episode"
+	"github.com/hardhacker/podwise-cli/internal/podcast"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -32,9 +34,14 @@ func runMCP(cmd *cobra.Command, args []string) error {
 	server := mcp.NewServer(&mcp.Implementation{Name: "podwise", Version: "v1.0.0"}, nil)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "search",
+		Name:        "search_episode",
 		Description: "Search for podcast episodes by title keywords. Returns a list of matching episodes with titles, podcast names, publish dates, and episode URLs.",
-	}, mcpSearch)
+	}, mcpSearchEpisode)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "search_podcast",
+		Description: "Search for podcasts by name. Returns a list of matching podcasts with names, last publish dates, and podcast URLs.",
+	}, mcpSearchPodcast)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "process",
@@ -76,6 +83,41 @@ func runMCP(cmd *cobra.Command, args []string) error {
 		Description: "Get AI-extracted topic keywords with descriptions from a processed episode. Requires a Podwise episode URL.",
 	}, mcpGetKeywords)
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "drill",
+		Description: "Drill into a specific podcast and list its recent episodes within a date range, sorted by publish time (newest first). Requires a Podwise podcast URL (https://podwise.ai/dashboard/podcasts/<id>).",
+	}, mcpDrill)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "follow",
+		Description: "Follow a podcast by its Podwise URL. The operation is idempotent — following an already-followed podcast succeeds silently. Requires a Podwise podcast URL (https://podwise.ai/dashboard/podcasts/<id>).",
+	}, mcpFollow)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "unfollow",
+		Description: "Unfollow a podcast by its Podwise URL. The operation is idempotent — unfollowing a podcast you do not follow succeeds silently. Requires a Podwise podcast URL (https://podwise.ai/dashboard/podcasts/<id>).",
+	}, mcpUnfollow)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_followed_episodes",
+		Description: "List recent episodes from podcasts the authenticated user follows, sorted by publish time (newest first). Use 'date' to filter by a specific day (today, yesterday, or YYYY-MM-DD), or 'latest' to look back N days ending today (max 30, default 7).",
+	}, mcpListFollowedEpisodes)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_followed_podcasts",
+		Description: "List followed podcasts that have new episodes within a date range, sorted by last publish time (newest first). Use 'date' to filter by a specific day (today, yesterday, or YYYY-MM-DD), or 'latest' to look back N days ending today (max 30, default 7).",
+	}, mcpListFollowedPodcasts)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "popular",
+		Description: "List the current trending/popular podcast episodes across all languages. Returns episode titles, podcast names, and episode URLs.",
+	}, mcpPopular)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "ask",
+		Description: "Ask the AI a question based on podcast transcripts. The AI searches relevant podcast transcripts and generates an answer with source citations. Use 'show_sources' to include cited excerpts and episode links in the response. The daily ask limit depends on your Podwise plan.",
+	}, mcpAsk)
+
 	err := server.Run(context.Background(), &mcp.StdioTransport{})
 	if errors.Is(err, io.EOF) || (err != nil && strings.Contains(err.Error(), "closing")) {
 		return nil
@@ -111,35 +153,50 @@ func mcpFetchSummary(ctx context.Context, client *api.Client, rawURL string) (*e
 	return episode.FetchSummary(ctx, client, seq, false)
 }
 
-// ─── Tool: search ─────────────────────────────────────────────────────────────
+// ─── Tool: search_episode / search_podcast ────────────────────────────────────
 
 type mcpSearchInput struct {
-	Query string `json:"query" jsonschema:"search query string"`
+	Query string `json:"query"           jsonschema:"search query string"`
 	Limit int    `json:"limit,omitempty" jsonschema:"maximum number of results (1-50, default 10)"`
 }
 
-func mcpSearch(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpSearchLimit(in int) int {
+	if in <= 0 {
+		return defaultSearchLimit
+	}
+	if in > 50 {
+		return 50
+	}
+	return in
+}
+
+func mcpSearchEpisode(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput) (*mcp.CallToolResult, struct{}, error) {
 	if in.Query == "" {
 		return nil, struct{}{}, fmt.Errorf("query must not be empty")
 	}
-	limit := in.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	if limit > 50 {
-		limit = 50
-	}
-
 	client, err := mcpLoadClient()
 	if err != nil {
 		return nil, struct{}{}, err
 	}
-
-	result, err := episode.Search(ctx, client, in.Query, limit)
+	result, err := episode.Search(ctx, client, in.Query, mcpSearchLimit(in.Limit))
 	if err != nil {
 		return nil, struct{}{}, err
 	}
+	return textResult(result.FormatText(in.Query)), struct{}{}, nil
+}
 
+func mcpSearchPodcast(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput) (*mcp.CallToolResult, struct{}, error) {
+	if in.Query == "" {
+		return nil, struct{}{}, fmt.Errorf("query must not be empty")
+	}
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	result, err := podcast.SearchPodcasts(ctx, client, in.Query, mcpSearchLimit(in.Limit))
+	if err != nil {
+		return nil, struct{}{}, err
+	}
 	return textResult(result.FormatText(in.Query)), struct{}{}, nil
 }
 
@@ -352,4 +409,195 @@ func mcpGetKeywords(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisode
 		return nil, struct{}{}, err
 	}
 	return textResult(result.FormatKeywords()), struct{}{}, nil
+}
+
+// ─── Tool: drill ──────────────────────────────────────────────────────────────
+
+type mcpDrillInput struct {
+	PodcastURL string `json:"podcast_url"      jsonschema:"Podwise podcast URL (https://podwise.ai/dashboard/podcasts/<id>)"`
+	Latest     int    `json:"latest,omitempty" jsonschema:"look back N days ending today (1-365, default 30)"`
+}
+
+func mcpDrill(ctx context.Context, req *mcp.CallToolRequest, in mcpDrillInput) (*mcp.CallToolResult, struct{}, error) {
+	if in.PodcastURL == "" {
+		return nil, struct{}{}, fmt.Errorf("podcast_url must not be empty")
+	}
+
+	podcastSeq, err := podcast.ParseSeq(in.PodcastURL)
+	if err != nil {
+		return nil, struct{}{}, fmt.Errorf("invalid podcast URL: %w", err)
+	}
+
+	days := in.Latest
+	if days <= 0 {
+		days = defaultDrillLatest
+	}
+	if days > 365 {
+		days = 365
+	}
+
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+
+	date := episode.Today()
+	result, err := podcast.FetchPodcastEpisodes(ctx, client, podcastSeq, date, days)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+
+	return textResult(result.FormatText(date, days)), struct{}{}, nil
+}
+
+// ─── Tool: follow ─────────────────────────────────────────────────────────────
+
+type mcpPodcastInput struct {
+	PodcastURL string `json:"podcast_url" jsonschema:"Podwise podcast URL (https://podwise.ai/dashboard/podcasts/<id>)"`
+}
+
+func mcpFollow(ctx context.Context, req *mcp.CallToolRequest, in mcpPodcastInput) (*mcp.CallToolResult, struct{}, error) {
+	if in.PodcastURL == "" {
+		return nil, struct{}{}, fmt.Errorf("podcast_url must not be empty")
+	}
+	seq, err := podcast.ParseSeq(in.PodcastURL)
+	if err != nil {
+		return nil, struct{}{}, fmt.Errorf("invalid podcast URL: %w", err)
+	}
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	if err := podcast.Follow(ctx, client, seq); err != nil {
+		return nil, struct{}{}, err
+	}
+	return textResult(fmt.Sprintf("Following podcast %s", podcast.BuildPodcastURL(seq))), struct{}{}, nil
+}
+
+// ─── Tool: unfollow ───────────────────────────────────────────────────────────
+
+func mcpUnfollow(ctx context.Context, req *mcp.CallToolRequest, in mcpPodcastInput) (*mcp.CallToolResult, struct{}, error) {
+	if in.PodcastURL == "" {
+		return nil, struct{}{}, fmt.Errorf("podcast_url must not be empty")
+	}
+	seq, err := podcast.ParseSeq(in.PodcastURL)
+	if err != nil {
+		return nil, struct{}{}, fmt.Errorf("invalid podcast URL: %w", err)
+	}
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	if err := podcast.Unfollow(ctx, client, seq); err != nil {
+		return nil, struct{}{}, err
+	}
+	return textResult(fmt.Sprintf("Unfollowed podcast %s", podcast.BuildPodcastURL(seq))), struct{}{}, nil
+}
+
+// ─── Tool: list_followed_episodes ─────────────────────────────────────────────
+
+type mcpListFollowedInput struct {
+	Date   string `json:"date,omitempty"   jsonschema:"specific day to filter by: today, yesterday, or YYYY-MM-DD (takes priority over latest)"`
+	Latest int    `json:"latest,omitempty" jsonschema:"look back N days ending today (1-30, default 7); ignored when date is set"`
+}
+
+func mcpListFollowedEpisodes(ctx context.Context, req *mcp.CallToolRequest, in mcpListFollowedInput) (*mcp.CallToolResult, struct{}, error) {
+	date, days, err := resolveListDateDays(in.Date, in.Latest, 30)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	result, err := episode.FetchFollowedEpisodes(ctx, client, date, days)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	return textResult(result.FormatText(date, days)), struct{}{}, nil
+}
+
+// ─── Tool: list_followed_podcasts ─────────────────────────────────────────────
+
+func mcpListFollowedPodcasts(ctx context.Context, req *mcp.CallToolRequest, in mcpListFollowedInput) (*mcp.CallToolResult, struct{}, error) {
+	date, days, err := resolveListDateDays(in.Date, in.Latest, 30)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	result, err := podcast.FetchFollowedPodcasts(ctx, client, date, days)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	return textResult(result.FormatText(date, days)), struct{}{}, nil
+}
+
+// resolveListDateDays converts the MCP date/latest inputs into a canonical
+// (date string, days int) pair, mirroring the CLI flag resolution logic.
+// maxLatest caps the latest value (30 for followed resources, 365 for podcasts).
+func resolveListDateDays(dateStr string, latest, maxLatest int) (string, int, error) {
+	if dateStr != "" {
+		parsed, err := episode.ParseDate(dateStr)
+		if err != nil {
+			return "", 0, err
+		}
+		return parsed, 1, nil
+	}
+	if latest <= 0 {
+		latest = defaultFollowedLatest
+	}
+	if latest > maxLatest {
+		return "", 0, fmt.Errorf("latest must be between 1 and %d", maxLatest)
+	}
+	return episode.Today(), latest, nil
+}
+
+// ─── Tool: popular ────────────────────────────────────────────────────────────
+
+type mcpPopularInput struct {
+	Limit int `json:"limit,omitempty" jsonschema:"number of results to return (1-50, default 10)"`
+}
+
+func mcpPopular(ctx context.Context, req *mcp.CallToolRequest, in mcpPopularInput) (*mcp.CallToolResult, struct{}, error) {
+	limit := in.Limit
+	if limit <= 0 {
+		limit = defaultPopularLimit
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	result, err := episode.FetchPopular(ctx, client, limit)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	return textResult(result.FormatText()), struct{}{}, nil
+}
+
+// ─── Tool: ask ────────────────────────────────────────────────────────────────
+
+type mcpAskInput struct {
+	Question    string `json:"question"               jsonschema:"the question to ask the AI based on podcast transcripts"`
+	ShowSources bool   `json:"show_sources,omitempty" jsonschema:"if true, include cited source excerpts and episode links in the response"`
+}
+
+func mcpAsk(ctx context.Context, req *mcp.CallToolRequest, in mcpAskInput) (*mcp.CallToolResult, struct{}, error) {
+	if in.Question == "" {
+		return nil, struct{}{}, fmt.Errorf("question must not be empty")
+	}
+	client, err := mcpLoadClient()
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	result, err := ask.Ask(ctx, client, in.Question)
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+	return textResult(result.FormatText(in.Question, in.ShowSources)), struct{}{}, nil
 }
