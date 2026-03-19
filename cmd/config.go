@@ -18,7 +18,7 @@ To get started, set your API key:
   podwise config set api_key <your-api-key>
 
 You can create or find your API key at:
-  https://podwise.ai/dashboard/settings/
+  https://podwise.ai/dashboard/settings/developer
 
 Use "podwise config show" to verify your current configuration.`,
 }
@@ -82,7 +82,7 @@ Available keys:
   api_base_url  API base URL (default: https://podwise.ai/api)
 
 To create or find your API key, visit:
-  https://podwise.ai/dashboard/settings/
+  https://podwise.ai/dashboard/settings/developer
 
 Examples:
   podwise config set api_key sk-xxxx

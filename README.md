@@ -50,7 +50,7 @@ sudo mv podwise /usr/local/bin/
 
 ## Configuration
 
-First, create your [podwise.ai](https://podwise.ai/dashboard/settings) API key:
+First, create your [podwise.ai](https://podwise.ai/dashboard/settings/developer) API key:
 
 ```bash
 # Set your API key
