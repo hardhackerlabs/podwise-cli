@@ -96,7 +96,7 @@ func isTerminal(f *os.File) bool {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&prettyOutput, "pretty", false, "render markdown output with terminal styling")
+	rootCmd.PersistentFlags().BoolVar(&prettyOutput, "pretty", false, "render markdown output with terminal styling (AI Agents/LLMs should not use this flag)")
 
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(processCmd)
