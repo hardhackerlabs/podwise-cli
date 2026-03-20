@@ -14,8 +14,8 @@ import (
 // podwise list <subcommand>
 var listCmd = &cobra.Command{
 	Use:   "list <subcommand>",
-	Short: "List episodes or podcasts from your account",
-	Long:  "List episodes or podcasts related to your Podwise account, such as episodes or podcasts you follow.",
+	Short: "List followed podcasts or episodes",
+	Long:  "List the podcasts you follow, or episodes published by the podcasts you follow in Podwise.",
 	Example: `  podwise list episodes --date today
   podwise list episodes --date yesterday
   podwise list episodes --latest 3 --json
@@ -32,7 +32,7 @@ var episodesJSONOutput bool
 // podwise list episodes
 var listEpisodesCmd = &cobra.Command{
 	Use:   "episodes",
-	Short: "List recent episodes from podcasts you follow",
+	Short: "List recent episodes from followed podcasts",
 	Long: `List episodes published by podcasts the authenticated user follows.
 
 Episodes are sorted by publish time (newest first).
@@ -56,7 +56,7 @@ var podcastsJSONOutput bool
 // podwise list podcasts
 var listPodcastsCmd = &cobra.Command{
 	Use:   "podcasts",
-	Short: "List followed podcasts with recent new episodes",
+	Short: "List followed podcasts with recent episodes",
 	Long: `List podcasts the authenticated user follows that have new episodes within a date range.
 
 Podcasts are sorted by last publish time (newest first).

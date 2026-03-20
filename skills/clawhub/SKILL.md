@@ -45,9 +45,9 @@ podwise get transcript --help
 
 - Use `search` when the user wants matching podcasts or episodes returned as results to browse.
 - Use `ask` when the user wants an answer, synthesis, or insights derived from transcript content across podcasts.
-- If the user wants to find episodes by keyword, or title, run `podwise search episode`.
-- If the user wants to find shows or feeds by podcast name or keyword, run `podwise search podcast`.
-- If the user asks what podcasts say about a topic, asks for takeaways, or wants transcript-grounded analysis, run `podwise ask`.
+- If the user wants to find episodes by keyword, or title, run `podwise search episode <title>`.
+- If the user wants to find shows or feeds by podcast name or keyword, run `podwise search podcast <name>`.
+- If the user asks what podcasts say about a topic, asks for takeaways, or wants transcript-grounded analysis, run `podwise ask <message>`.
 - If the user wants to discover what is currently trending across Podwise, run `podwise popular`.
 - If the user wants to check updates from podcasts they already follow, run `podwise list episodes` or `podwise list podcasts`.
 

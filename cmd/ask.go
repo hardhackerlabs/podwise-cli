@@ -51,10 +51,43 @@ func runAsk(cmd *cobra.Command, args []string) error {
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
 
-	fmt.Fprintf(os.Stderr, "Thinking... (AI is searching podcast transcripts, this may take up to 60s)\n")
+	var stopSpinner chan struct{}
+	var spinnerDone chan struct{}
+	if prettyOutput {
+		stopSpinner = make(chan struct{})
+		spinnerDone = make(chan struct{})
+		go func() {
+			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			i := 0
+			fmt.Fprintf(os.Stderr, "\r\033[36m%s\033[0m Thinking... (AI is searching podcast transcripts, this may take up to 60s)", frames[i])
+			i++
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-stopSpinner:
+					fmt.Fprintf(os.Stderr, "\r\033[K")
+					close(spinnerDone)
+					return
+				case <-ticker.C:
+					fmt.Fprintf(os.Stderr, "\r\033[36m%s\033[0m Thinking... (AI is searching podcast transcripts, this may take up to 60s)", frames[i])
+					i = (i + 1) % len(frames)
+				}
+			}
+		}()
+	} else {
+		fmt.Fprintf(os.Stderr, "Thinking... (AI is searching podcast transcripts, this may take up to 60s)\n")
+	}
+
 	start := time.Now()
 
 	result, err := ask.Ask(context.Background(), client, question)
+
+	if prettyOutput {
+		close(stopSpinner)
+		<-spinnerDone
+	}
+
 	if err != nil {
 		return err
 	}

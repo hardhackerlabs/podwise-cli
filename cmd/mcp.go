@@ -19,12 +19,12 @@ import (
 
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
-	Short: "Start the Podwise MCP server over stdin/stdout",
-	Long: `Start an MCP (Model Context Protocol) server that exposes Podwise functionality as tools.
+	Short: "Start an MCP server that exposes Podwise tools over stdin/stdout",
+	Long: `Start an MCP (Model Context Protocol) server that exposes Podwise functionality as tools over stdin/stdout.
 
-The server communicates over stdin/stdout using the MCP protocol, allowing AI assistants
-to search episodes, process media, and retrieve AI-generated content (transcripts, summaries, 
-chapters, Q&A, mind maps, highlights, keywords).`,
+The server allows MCP clients to search podcasts and episodes, process media, manage followed
+podcasts, list followed podcasts or episodes, and retrieve AI-generated content (transcripts,
+summaries, chapters, Q&A, mind maps, highlights, keywords).`,
 	Example: `  podwise mcp`,
 	Args:    cobra.NoArgs,
 	RunE:    runMCP,
@@ -100,12 +100,12 @@ func runMCP(cmd *cobra.Command, args []string) error {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_episodes",
-		Description: "List recent episodes from podcasts the authenticated user follows, sorted by publish time (newest first). Use 'date' to filter by a specific day (today, yesterday, or YYYY-MM-DD), or 'latest' to look back N days ending today (max 30, default 7).",
+		Description: "List recent episodes from podcasts the authenticated user follows, sorted by publish time (newest first). This tool is only for followed podcasts. Use 'date' to filter by a specific day (today, yesterday, or YYYY-MM-DD), or 'latest' to look back N days ending today (max 30, default 7).",
 	}, mcpListEpisodes)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_podcasts",
-		Description: "List followed podcasts that have new episodes within a date range, sorted by last publish time (newest first). Use 'date' to filter by a specific day (today, yesterday, or YYYY-MM-DD), or 'latest' to look back N days ending today (max 30, default 7).",
+		Description: "List podcasts the authenticated user follows that have new episodes within a date range, sorted by last publish time (newest first). This tool is only for followed podcasts. Use 'date' to filter by a specific day (today, yesterday, or YYYY-MM-DD), or 'latest' to look back N days ending today (max 30, default 7).",
 	}, mcpListPodcasts)
 
 	mcp.AddTool(server, &mcp.Tool{
