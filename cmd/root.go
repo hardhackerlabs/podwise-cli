@@ -111,4 +111,5 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(historyCmd)
 }
