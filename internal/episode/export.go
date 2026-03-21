@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
+	"github.com/hardhacker/podwise-cli/internal/async"
 )
 
 // NotionExportOptions holds parameters for exporting to Notion.
@@ -72,6 +73,11 @@ func ExportToNotion(ctx context.Context, client *api.Client, seq int, opts Notio
 	if err := client.Post(ctx, apiPath, body, &resp); err != nil {
 		return nil, formatNotionError(err)
 	}
+
+	// Mark episode as read in background
+	async.Go(func() {
+		_ = MarkAsRead(context.Background(), client, seq)
+	})
 
 	return &resp.Result, nil
 }
@@ -169,6 +175,11 @@ func ExportToReadwise(ctx context.Context, client *api.Client, seq int, opts Rea
 	if err := client.Post(ctx, apiPath, body, &resp); err != nil {
 		return nil, formatReadwiseError(err)
 	}
+
+	// Mark episode as read in background
+	async.Go(func() {
+		_ = MarkAsRead(context.Background(), client, seq)
+	})
 
 	return &resp.Result, nil
 }

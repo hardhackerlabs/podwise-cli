@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hardhacker/podwise-cli/internal/async"
 	"github.com/hardhacker/podwise-cli/internal/update"
 	"github.com/spf13/cobra"
 )
@@ -31,10 +32,12 @@ func Execute(version, commit, date string) {
 	updateCh := maybeStartUpdateCheck(version)
 
 	if err := rootCmd.Execute(); err != nil {
+		async.Wait() // Wait for background tasks before exit
 		os.Exit(1)
 	}
 
 	printUpdateNotice(updateCh)
+	async.Wait() // Wait for background tasks before exit
 }
 
 // maybeStartUpdateCheck starts an async update check and returns a channel that

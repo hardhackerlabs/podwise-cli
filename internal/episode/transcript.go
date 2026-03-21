@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
+	"github.com/hardhacker/podwise-cli/internal/async"
 	"github.com/hardhacker/podwise-cli/internal/cache"
 )
 
@@ -64,6 +65,11 @@ func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRef
 		// Non-fatal: log but don't fail the command.
 		fmt.Printf("warning: could not write cache: %v\n", err)
 	}
+
+	// Mark episode as read in background
+	async.Go(func() {
+		_ = MarkAsRead(context.Background(), client, seq)
+	})
 
 	return resp.Result, nil
 }
