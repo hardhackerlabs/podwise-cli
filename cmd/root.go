@@ -12,6 +12,9 @@ import (
 // prettyOutput is the global flag that enables glamour markdown rendering.
 var prettyOutput bool
 
+// prettyNoPager is the global flag that enables pretty output without pager.
+var prettyNoPager bool
+
 var rootCmd = &cobra.Command{
 	Use:          "podwise",
 	Short:        "podwise — AI podcast & YouTube insights from your terminal",
@@ -96,7 +99,8 @@ func isTerminal(f *os.File) bool {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&prettyOutput, "pretty", false, "render markdown output with terminal styling (AI Agents/LLMs should not use this flag)")
+	rootCmd.PersistentFlags().BoolVar(&prettyOutput, "pretty", false, "render markdown output with terminal styling and pager (AI Agents/LLMs should not use this flag)")
+	rootCmd.PersistentFlags().BoolVar(&prettyNoPager, "pretty-no-pager", false, "render markdown output with terminal styling but without pager (AI Agents/LLMs should not use this flag)")
 
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(processCmd)
