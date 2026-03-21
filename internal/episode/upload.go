@@ -154,7 +154,7 @@ func Upload(ctx context.Context, client *api.Client, opts UploadOptions) (*Uploa
 		FileName:    fileName,
 		ContentType: contentType,
 	}, &presignResp); err != nil {
-		return nil, fmt.Errorf("presign upload URL: %w", err)
+		return nil, formatUploadError(err, "presign")
 	}
 
 	uploadURL := presignResp.Result.UploadURL
@@ -188,7 +188,7 @@ func Upload(ctx context.Context, client *api.Client, opts UploadOptions) (*Uploa
 		// prevent the DELETE from being sent.
 		cleanupErr := deleteStorageObject(context.Background(), uploadURL)
 		return nil, &UploadCleanupError{
-			CreateErr:   err,
+			CreateErr:   formatUploadError(err, "create"),
 			CleanupErr:  cleanupErr,
 			StoragePath: storagePath,
 		}
@@ -251,4 +251,20 @@ func putAudioFile(ctx context.Context, filePath, uploadURL, contentType string, 
 	}
 
 	return nil
+}
+
+// formatUploadError translates API errors into user-friendly messages.
+// step indicates which API call failed: "presign" or "create".
+func formatUploadError(err error, step string) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return fmt.Errorf("%s upload: %w", step, err)
+	}
+
+	switch apiErr.ErrCode {
+	case "feature_not_available":
+		return fmt.Errorf("upload audio is not available for your plan")
+	default:
+		return fmt.Errorf("%s upload: %w", step, err)
+	}
 }

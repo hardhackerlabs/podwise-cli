@@ -190,7 +190,7 @@ func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh
 	var resp summaryResponse
 	apiPath := fmt.Sprintf("/open/v1/episodes/%d/summary", seq)
 	if err := client.Get(ctx, apiPath, nil, &resp); err != nil {
-		return nil, err
+		return nil, formatSummaryError(err)
 	}
 
 	if err := cache.Write(seq, cacheType, resp.Result); err != nil {
@@ -198,4 +198,21 @@ func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh
 	}
 
 	return &resp.Result, nil
+}
+
+// formatSummaryError translates API errors into user-friendly messages.
+func formatSummaryError(err error) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return err
+	}
+
+	switch apiErr.ErrCode {
+	case "not_found":
+		return fmt.Errorf("episode does not exist")
+	case "not_transcribed":
+		return fmt.Errorf("episode has not been processed yet")
+	default:
+		return err
+	}
 }

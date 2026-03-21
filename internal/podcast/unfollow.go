@@ -14,5 +14,23 @@ func Unfollow(ctx context.Context, client *api.Client, seq int) error {
 	var resp struct {
 		Success bool `json:"success"`
 	}
-	return client.Post(ctx, path, nil, &resp)
+	if err := client.Post(ctx, path, nil, &resp); err != nil {
+		return formatUnfollowError(err)
+	}
+	return nil
+}
+
+// formatUnfollowError translates API errors into user-friendly messages.
+func formatUnfollowError(err error) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return err
+	}
+
+	switch apiErr.ErrCode {
+	case "not_found":
+		return fmt.Errorf("podcast does not exist")
+	default:
+		return err
+	}
 }

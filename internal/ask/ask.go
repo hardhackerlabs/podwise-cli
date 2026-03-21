@@ -92,7 +92,22 @@ func Ask(ctx context.Context, client *api.Client, question string) (*Result, err
 	body := map[string]string{"question": question}
 	var resp askResponse
 	if err := client.Post(ctx, "/open/v1/ask", body, &resp); err != nil {
-		return nil, err
+		return nil, formatAskError(err)
 	}
 	return &resp.Result, nil
+}
+
+// formatAskError translates API errors into user-friendly messages.
+func formatAskError(err error) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return err
+	}
+
+	switch apiErr.ErrCode {
+	case "out_of_limit":
+		return fmt.Errorf("daily ask limit exceeded for your plan")
+	default:
+		return err
+	}
 }

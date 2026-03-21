@@ -144,7 +144,7 @@ func jsonResponse(status int, body string) *http.Response {
 
 func TestAuthContextError(t *testing.T) {
 	err := authContextError(context.DeadlineExceeded, "authorization")
-	if err == nil || !strings.Contains(err.Error(), "timed out after 5m 0s") {
+	if err == nil || !strings.Contains(err.Error(), "timed out after 2m 0s") {
 		t.Fatalf("authContextError() = %v", err)
 	}
 }

@@ -2,7 +2,6 @@ package episode
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -30,7 +29,7 @@ func SubmitProcess(ctx context.Context, client *api.Client, seq int) (*ProcessRe
 	var resp processResponse
 	apiPath := fmt.Sprintf("/open/v1/episodes/%d/process", seq)
 	if err := client.Post(ctx, apiPath, nil, &resp); err != nil {
-		return nil, err
+		return nil, formatProcessError(err)
 	}
 	return &resp.Result, nil
 }
@@ -42,9 +41,41 @@ func FetchStatus(ctx context.Context, client *api.Client, seq int) (*ProcessResu
 	var resp processResponse
 	apiPath := fmt.Sprintf("/open/v1/episodes/%d/status", seq)
 	if err := client.Get(ctx, apiPath, nil, &resp); err != nil {
-		return nil, err
+		return nil, formatStatusError(err)
 	}
 	return &resp.Result, nil
+}
+
+// formatProcessError translates API errors into user-friendly messages.
+func formatProcessError(err error) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return err
+	}
+
+	switch apiErr.ErrCode {
+	case "out_of_quota":
+		return fmt.Errorf("insufficient transcribe credits")
+	case "not_found":
+		return fmt.Errorf("episode does not exist")
+	default:
+		return err
+	}
+}
+
+// formatStatusError translates API errors into user-friendly messages.
+func formatStatusError(err error) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return err
+	}
+
+	switch apiErr.ErrCode {
+	case "not_found":
+		return fmt.Errorf("episode does not exist")
+	default:
+		return err
+	}
 }
 
 // ─── Input resolution ─────────────────────────────────────────────────────────
@@ -88,19 +119,6 @@ func ResolveInput(ctx context.Context, client *api.Client, input string, opts Re
 	case IsYouTubeURL(input) || IsXiaoyuzhouURL(input):
 		result, err := Import(ctx, client, input)
 		if err != nil {
-			var apiErr *api.APIError
-			if errors.As(err, &apiErr) {
-				switch apiErr.ErrCode {
-				case "private_episode":
-					return nil, fmt.Errorf("episode is private and cannot be imported")
-				case "not_found":
-					return nil, fmt.Errorf("video not found: %s", input)
-				case "conflict":
-					return nil, fmt.Errorf("import conflict detected, please contact support@podwise.ai")
-				case "fetch_error":
-					return nil, fmt.Errorf("failed to fetch episode data, please try again later")
-				}
-			}
 			return nil, fmt.Errorf("import failed: %w", err)
 		}
 		return &ResolveResult{Seq: result.Seq, Kind: KindImport, Import: result}, nil

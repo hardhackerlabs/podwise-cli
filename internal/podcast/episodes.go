@@ -109,7 +109,22 @@ func FetchPodcastEpisodes(ctx context.Context, client *api.Client, podcastSeq in
 	path := fmt.Sprintf("/open/v1/podcasts/%d/episodes", podcastSeq)
 	var resp podcastEpisodesResponse
 	if err := client.Get(ctx, path, q, &resp); err != nil {
-		return nil, err
+		return nil, formatPodcastEpisodesError(err)
 	}
 	return &PodcastEpisodesResult{PodcastSeq: podcastSeq, Episodes: resp.Result}, nil
+}
+
+// formatPodcastEpisodesError translates API errors into user-friendly messages.
+func formatPodcastEpisodesError(err error) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return err
+	}
+
+	switch apiErr.ErrCode {
+	case "not_found":
+		return fmt.Errorf("podcast does not exist")
+	default:
+		return err
+	}
 }

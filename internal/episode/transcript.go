@@ -57,7 +57,7 @@ func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRef
 	var resp transcriptResponse
 	path := fmt.Sprintf("/open/v1/episodes/%d/transcripts", seq)
 	if err := client.Get(ctx, path, nil, &resp); err != nil {
-		return nil, err
+		return nil, formatTranscriptError(err)
 	}
 
 	if err := cache.Write(seq, cacheType, resp.Result); err != nil {
@@ -66,6 +66,23 @@ func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRef
 	}
 
 	return resp.Result, nil
+}
+
+// formatTranscriptError translates API errors into user-friendly messages.
+func formatTranscriptError(err error) error {
+	apiErr, ok := err.(*api.APIError)
+	if !ok {
+		return err
+	}
+
+	switch apiErr.ErrCode {
+	case "not_found":
+		return fmt.Errorf("episode does not exist")
+	case "not_transcribed":
+		return fmt.Errorf("episode has not been processed yet")
+	default:
+		return err
+	}
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

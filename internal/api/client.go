@@ -61,19 +61,6 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
-	if e.StatusCode == 404 {
-		switch e.ErrCode {
-		case "not_found":
-			return fmt.Sprintf("not found: %s", e.Message)
-		case "not_transcribed":
-			return fmt.Sprintf("not processed: %s", e.Message)
-		}
-	}
-
-	if e.StatusCode == 402 && e.ErrCode == "out_of_quota" {
-		return fmt.Sprintf("insufficient credits: %s", e.Message)
-	}
-
 	label := statusLabel(e.StatusCode)
 	if label != "" {
 		return fmt.Sprintf("%s: %s", label, e.Message)
