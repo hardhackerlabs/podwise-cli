@@ -68,15 +68,11 @@ type PopularEpisodeJSON struct {
 func (r *PopularResult) FormatJSON() ([]byte, error) {
 	items := make([]PopularEpisodeJSON, 0, len(r.Episodes))
 	for _, ep := range r.Episodes {
-		isYouTube := "No"
-		if ep.LinkType == "youtube" {
-			isYouTube = "Yes"
-		}
 		items = append(items, PopularEpisodeJSON{
 			Title:       ep.Title,
 			PodcastName: ep.PodcastName,
 			EpisodeURL:  BuildEpisodeURL(ep.Seq),
-			IsYouTube:   isYouTube,
+			IsYouTube:   utils.BoolToYesNo(ep.LinkType == "youtube"),
 			Duration:    utils.FormatDuration(time.Duration(ep.Duration) * time.Second),
 		})
 	}

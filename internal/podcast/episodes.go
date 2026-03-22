@@ -57,17 +57,9 @@ func (r *PodcastEpisodesResult) FormatText(date string, days int) string {
 		if ep.Language != nil && *ep.Language != "" {
 			fmt.Fprintf(&sb, "- **Language:** %s\n", *ep.Language)
 		}
-		processedLabel := "No"
-		if ep.Transcribed {
-			processedLabel = "Yes"
-		}
-		fmt.Fprintf(&sb, "- **Processed:** %s\n", processedLabel)
+		fmt.Fprintf(&sb, "- **Processed:** %s\n", utils.BoolToYesNo(ep.Transcribed))
 		fmt.Fprintf(&sb, "- **Episode URL:** %s\n", episode.BuildEpisodeURL(ep.Seq))
-		readLabel := "No"
-		if ep.IsRead {
-			readLabel = "Yes"
-		}
-		fmt.Fprintf(&sb, "- **Read:** %s\n", readLabel)
+		fmt.Fprintf(&sb, "- **Read:** %s\n", utils.BoolToYesNo(ep.IsRead))
 		sb.WriteString("\n")
 	}
 	return sb.String()

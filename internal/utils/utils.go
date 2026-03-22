@@ -54,3 +54,11 @@ func NormalizeDurationString(value string) string {
 	s := totalSeconds % 60
 	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
 }
+
+// BoolToYesNo converts a boolean value to "Yes" or "No".
+func BoolToYesNo(b bool) string {
+	if b {
+		return "Yes"
+	}
+	return "No"
+}
