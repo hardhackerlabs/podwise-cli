@@ -21,7 +21,7 @@ podwise config show
 
 If `podwise` is not installed or the API key is missing, stop and follow [references/installation.md](references/installation.md) before continuing.
 
-## Step 2: Load the Listener Persona
+## Step 2: Load the Listener Taste
 
 Look for `taste.md` in the current working directory.
 

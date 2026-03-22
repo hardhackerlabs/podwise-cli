@@ -130,7 +130,29 @@ podwise --help
 
 > **Prerequisites:** Before installing skills, make sure you have completed the [Installation](#installation) and [Configuration](#configuration) steps above — the `podwise` CLI must be installed and your `api_key` must be set.
 
-Podwise provides official agent skills out of the box. Run the following command to install the latest skills:
+### Available Workflows
+
+The Podwise skill routes your intent to the right workflow automatically:
+
+| Workflow | What it does |
+|---|---|
+| **catch-up** | Catch up on missed episodes from podcasts you follow |
+| **weekly-recap** | Generate a weekly listening recap with highlights |
+| **episode-notes** | Export episode summaries and highlights to Notion, Obsidian, or Logseq |
+| **topic-research** | Research a topic across multiple podcast episodes |
+| **episode-debate** | Challenge and stress-test ideas from an episode |
+| **language-learning** | Generate Anki flashcards from a transcript |
+| **discover** | Get personalised podcast recommendations based on your taste |
+| **refine-taste** | Build your listener profile for personalised outputs |
+
+### How It Works
+
+When you ask the agent something related to podcasts, it:
+1. Loads Podwise CLI reference docs
+2. Matches your intent to the right workflow (if applicable)
+3. Loads and executes the workflow steps, or runs the CLI command directly
+
+### Installation
 
 ```bash
 npx skills add hardhackerlabs/podwise-cli
