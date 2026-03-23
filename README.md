@@ -82,7 +82,7 @@ podwise popular
 podwise ask "the future of AI Agents"
 ```
 
-#### Search Episodes
+#### Search
 
 ```bash
 # Search episodes by title keywords
@@ -103,9 +103,12 @@ podwise process https://www.xiaoyuzhoufm.com/episode/abc123
 
 # Youtube video URL
 podwise process https://www.youtube.com/watch?v=d0-Gn_Bxf8s
+
+# local file
+podwise process ./episode.mp3
 ```
 
-#### Get Episode Details
+#### Get Episode Results
 
 ```bash
 # Get summary
@@ -125,7 +128,7 @@ podwise --help
 
 > **Prerequisites:** Before installing skills, make sure you have completed the [Installation](#installation) and [Configuration](#configuration) steps above — the `podwise` CLI must be installed and your `api_key` must be set.
 
-### Available Workflows
+#### Available Workflows
 
 The Podwise skill routes your intent to the right workflow automatically:
 
@@ -140,14 +143,14 @@ The Podwise skill routes your intent to the right workflow automatically:
 | **discover**          | Get personalised podcast recommendations based on your taste           |
 | **refine-taste**      | Build your listener profile for personalised outputs                   |
 
-### How It Works
+#### How It Works
 
 When you ask the agent something related to podcasts, it:
 1. Loads Podwise CLI reference docs
 2. Matches your intent to the right workflow (if applicable)
 3. Loads and executes the workflow steps, or runs the CLI command directly
 
-### Installation
+#### Installation
 
 ```bash
 npx skills add hardhackerlabs/podwise-cli
@@ -189,7 +192,7 @@ The server exposes the following tools:
 | `history_read`     | List episodes you have read, sorted by most recent first                       |
 | `history_listened` | List episodes you have listened, sorted by most recent first                   |
 
-#### Install
+#### Installation
 
 1. Make sure `podwise` is installed and configured (see [Installation](#installation) and [Configuration](#configuration)).
 
