@@ -53,7 +53,7 @@ func runAsk(cmd *cobra.Command, args []string) error {
 
 	var stopSpinner chan struct{}
 	var spinnerDone chan struct{}
-	if prettyOutput {
+	if prettyOutput && isStderrTTY() {
 		stopSpinner = make(chan struct{})
 		spinnerDone = make(chan struct{})
 		go func() {
@@ -83,7 +83,7 @@ func runAsk(cmd *cobra.Command, args []string) error {
 
 	result, err := ask.Ask(context.Background(), client, question)
 
-	if prettyOutput {
+	if stopSpinner != nil {
 		close(stopSpinner)
 		<-spinnerDone
 	}

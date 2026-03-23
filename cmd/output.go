@@ -22,13 +22,15 @@ func loadGlamourStyle() string {
 }
 
 // printMarkdown writes text to cmd's output stream, rendering it through
-// glamour when the global --pretty flag is set.
+// glamour when the global --pretty flag is set and stdout is a TTY.
+// When stdout is not a TTY the rendered ANSI codes would be meaningless
+// (e.g. piped to a file or another process), so plain text is used instead.
 func printMarkdown(cmd *cobra.Command, text string) {
 	// --pretty-no-pager takes priority over --pretty
-	if prettyNoPager {
+	if prettyNoPager && isTTY() {
 		text = render.Markdown(text, loadGlamourStyle())
 		fmt.Fprint(cmd.OutOrStdout(), text)
-	} else if prettyOutput {
+	} else if prettyOutput && isTTY() {
 		text = render.Markdown(text, loadGlamourStyle())
 		printWithPager(cmd, text)
 	} else {
@@ -41,10 +43,10 @@ func printMarkdown(cmd *cobra.Command, text string) {
 // so glamour does not collapse them into a single line per item.
 func printMarkdownAnswer(cmd *cobra.Command, text string) {
 	// --pretty-no-pager takes priority over --pretty
-	if prettyNoPager {
+	if prettyNoPager && isTTY() {
 		text = render.MarkdownAnswer(text, loadGlamourStyle())
 		fmt.Fprint(cmd.OutOrStdout(), text)
-	} else if prettyOutput {
+	} else if prettyOutput && isTTY() {
 		text = render.MarkdownAnswer(text, loadGlamourStyle())
 		printWithPager(cmd, text)
 	} else {
@@ -89,4 +91,9 @@ func printWithPager(cmd *cobra.Command, text string) {
 // isTTY returns true if stdout is a terminal.
 func isTTY() bool {
 	return term.IsTerminal(1) // fd 1 = stdout
+}
+
+// isStderrTTY returns true if stderr is a terminal.
+func isStderrTTY() bool {
+	return term.IsTerminal(2) // fd 2 = stderr
 }
