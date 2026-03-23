@@ -29,50 +29,35 @@ mind maps, highlights and more.`,
 func Execute(version, commit, date string) {
 	rootCmd.Version = fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
 
-	updateCh := maybeStartUpdateCheck(version)
+	var updateResult *update.Result
+	maybeStartUpdateCheck(version, &updateResult)
 
 	if err := rootCmd.Execute(); err != nil {
 		async.Wait() // Wait for background tasks before exit
 		os.Exit(1)
 	}
 
-	printUpdateNotice(updateCh)
-	async.Wait() // Wait for background tasks before exit
+	async.Wait() // Wait for background tasks (including update check) before exit
+	printUpdateNotice(updateResult)
 }
 
-// maybeStartUpdateCheck starts an async update check and returns a channel that
-// will receive the result. The channel is closed immediately when the check
-// should be skipped (MCP mode, non-TTY, or PODWISE_NO_UPDATE_CHECK env var set).
-func maybeStartUpdateCheck(version string) <-chan update.Result {
-	ch := make(chan update.Result, 1)
-
+// maybeStartUpdateCheck starts an async update check using the async package.
+// The check is skipped in MCP mode, non-TTY environments, or when PODWISE_NO_UPDATE_CHECK is set.
+// The result is stored in the provided pointer after the check completes.
+func maybeStartUpdateCheck(version string, result **update.Result) {
 	if isMCPCommand() || !isTerminal(os.Stderr) || os.Getenv("PODWISE_NO_UPDATE_CHECK") != "" {
-		close(ch)
-		return ch
-	}
-
-	go func() {
-		ch <- update.Check(version)
-	}()
-
-	return ch
-}
-
-// printUpdateNotice performs a non-blocking read of the update channel and
-// prints a notice to stderr when a newer version is available.
-func printUpdateNotice(ch <-chan update.Result) {
-	var result update.Result
-	select {
-	case r, ok := <-ch:
-		if !ok {
-			return
-		}
-		result = r
-	default:
 		return
 	}
 
-	if !result.HasUpdate {
+	async.Go(func() {
+		r := update.Check(version)
+		*result = &r
+	})
+}
+
+// printUpdateNotice prints a notice to stderr when a newer version is available.
+func printUpdateNotice(result *update.Result) {
+	if result == nil || !result.HasUpdate {
 		return
 	}
 

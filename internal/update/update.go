@@ -62,7 +62,7 @@ func UpgradeHint() string {
 	if execPath, err := os.Executable(); err == nil {
 		lower := strings.ToLower(execPath)
 		if strings.Contains(lower, "/homebrew/") || strings.Contains(lower, "/linuxbrew/") {
-			return "brew upgrade podwise"
+			return "brew update && brew upgrade podwise"
 		}
 	}
 	return fmt.Sprintf(
