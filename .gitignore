@@ -29,6 +29,7 @@ vendor/
 SKILL_*.md
 .cursor/
 .gocache/
+homebrew-podwise-tap/
 
 skills-lock.json
 taste.md
