@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -23,45 +24,63 @@ type Segment struct {
 	Language string  `json:"language,omitempty"`
 }
 
+// TranscriptResult holds the transcript segments and the episode metadata.
+type TranscriptResult struct {
+	Segments []Segment    `json:"segments"`
+	Episode  *EpisodeInfo `json:"episode,omitempty"`
+}
+
 type transcriptResponse struct {
-	Success bool      `json:"success"`
-	Result  []Segment `json:"result"`
+	Success bool        `json:"success"`
+	Result  []Segment   `json:"result"`
+	Episode EpisodeInfo `json:"episode"`
 }
 
 // FetchTranscripts returns the transcript segments for the given episode seq.
-// Results are transparently cached in ~/.cache/podwise/<seq>_transcript.json;
+// Results are transparently cached in ~/.cache/podwise/<seq>_transcript[_<translation>].json;
 // subsequent calls return the cached copy without hitting the network.
+//
+// When translation is non-empty (e.g. "Chinese", "English"), the API returns
+// translated segments and the result is cached under a separate key so it does
+// not overwrite the original-language cache.
 //
 // When forceRefresh is true, the cache is bypassed only if the cached file is
 // older than 10 minutes; otherwise the cached copy is still returned as-is.
-func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRefresh bool) ([]Segment, error) {
-	const cacheType = "transcript"
+func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRefresh bool, translation string) (*TranscriptResult, error) {
+	cacheType := "transcript"
+	if translation != "" {
+		cacheType = "transcript_" + translation
+	}
 
 	skipCache := false
 	if forceRefresh {
-		stale, err := cache.IsStale(seq, cacheType, 10*time.Minute)
-		if err != nil {
-			return nil, fmt.Errorf("cache: %w", err)
-		}
+		stale, _ := cache.IsStale(seq, cacheType, 10*time.Minute)
 		skipCache = stale
 	}
 
 	if !skipCache {
-		var cached []Segment
-		if hit, err := cache.Read(seq, cacheType, &cached); err != nil {
-			return nil, fmt.Errorf("cache: %w", err)
-		} else if hit {
-			return cached, nil
+		var cached TranscriptResult
+		if hit, err := cache.Read(seq, cacheType, &cached); err == nil && hit {
+			return &cached, nil
 		}
+	}
+
+	var query url.Values
+	if translation != "" {
+		query = url.Values{"translation": {translation}}
 	}
 
 	var resp transcriptResponse
 	path := fmt.Sprintf("/open/v1/episodes/%d/transcripts", seq)
-	if err := client.Get(ctx, path, nil, &resp); err != nil {
+	if err := client.Get(ctx, path, query, &resp); err != nil {
 		return nil, formatTranscriptError(err)
 	}
 
-	if err := cache.Write(seq, cacheType, resp.Result); err != nil {
+	result := &TranscriptResult{
+		Segments: resp.Result,
+		Episode:  &resp.Episode,
+	}
+	if err := cache.Write(seq, cacheType, result); err != nil {
 		// Non-fatal: log but don't fail the command.
 		fmt.Printf("warning: could not write cache: %v\n", err)
 	}
@@ -71,7 +90,7 @@ func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRef
 		_ = MarkAsRead(context.Background(), client, seq)
 	})
 
-	return resp.Result, nil
+	return result, nil
 }
 
 // formatTranscriptError translates API errors into user-friendly messages.
@@ -86,6 +105,8 @@ func formatTranscriptError(err error) error {
 		return fmt.Errorf("episode does not exist")
 	case "not_transcribed":
 		return fmt.Errorf("episode has not been processed yet")
+	case "not_translated":
+		return fmt.Errorf("episode has not been translated yet")
 	default:
 		return err
 	}

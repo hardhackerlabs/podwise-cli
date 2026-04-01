@@ -160,7 +160,7 @@ func mcpFetchSummary(ctx context.Context, client *api.Client, rawURL string) (*e
 	if err != nil {
 		return nil, fmt.Errorf("invalid episode URL: %w", err)
 	}
-	return episode.FetchSummary(ctx, client, seq, false)
+	return episode.FetchSummary(ctx, client, seq, false, "")
 }
 
 // ─── Tool: search_episode / search_podcast ────────────────────────────────────
@@ -315,18 +315,18 @@ func mcpGetTranscript(ctx context.Context, req *mcp.CallToolRequest, in mcpGetTr
 		return nil, nil, err
 	}
 
-	segments, err := episode.FetchTranscripts(ctx, client, seq, false)
+	transcriptResult, err := episode.FetchTranscripts(ctx, client, seq, false, "")
 	if err != nil {
 		return nil, nil, err
 	}
 
 	switch in.Format {
 	case "text", "":
-		return textResult(episode.FormatTranscriptText(segments, in.Seconds)), nil, nil
+		return textResult(episode.FormatTranscriptText(transcriptResult.Segments, in.Seconds)), nil, nil
 	case "srt":
-		return textResult(episode.FormatTranscriptSRT(segments)), nil, nil
+		return textResult(episode.FormatTranscriptSRT(transcriptResult.Segments)), nil, nil
 	case "vtt":
-		return textResult(episode.FormatTranscriptVTT(segments)), nil, nil
+		return textResult(episode.FormatTranscriptVTT(transcriptResult.Segments)), nil, nil
 	default:
 		return nil, nil, fmt.Errorf("unknown format %q: use text, srt, or vtt", in.Format)
 	}

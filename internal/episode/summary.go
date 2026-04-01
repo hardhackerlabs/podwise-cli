@@ -3,6 +3,7 @@ package episode
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -47,6 +48,24 @@ type Highlight struct {
 	Content string `json:"content"`
 }
 
+// EpisodeInfo holds the episode metadata returned alongside the summary result.
+// Optional fields (epCover, description, duration, language) may be nil.
+type EpisodeInfo struct {
+	EpisodeID   string  `json:"episodeId"`
+	Seq         int     `json:"seq"`
+	Title       string  `json:"title"`
+	PodcastName string  `json:"podcastName"`
+	Cover       string  `json:"cover"`
+	EpCover     *string `json:"epCover"`
+	Description *string `json:"description"`
+	PublishTime int64   `json:"publishTime"`
+	Link        string  `json:"link"`
+	LinkType    string  `json:"linkType"`
+	Duration    *int    `json:"duration"`
+	Transcribed bool    `json:"transcribed"`
+	Language    *string `json:"language"`
+}
+
 // SummaryResult holds all AI-generated content for an episode.
 type SummaryResult struct {
 	Summary      string        `json:"summary"`
@@ -60,6 +79,7 @@ type SummaryResult struct {
 	Titles       []string      `json:"titles"`
 	Intros       []string      `json:"intros"`
 	Timestamps   []string      `json:"timestamps"`
+	Episode      *EpisodeInfo  `json:"episode,omitempty"`
 }
 
 // FormatSummary returns the summary text followed by a numbered takeaway list.
@@ -159,41 +179,50 @@ func (r *SummaryResult) FormatKeywords() string {
 type summaryResponse struct {
 	Success bool          `json:"success"`
 	Result  SummaryResult `json:"result"`
+	Episode EpisodeInfo   `json:"episode"`
 }
 
 // FetchSummary returns the AI-generated summary result for the given episode seq.
-// Results are transparently cached in ~/.cache/podwise/<seq>_summary.json;
+// Results are transparently cached in ~/.cache/podwise/<seq>_summary[_<translation>].json;
 // subsequent calls return the cached copy without hitting the network.
+//
+// When translation is non-empty (e.g. "Chinese", "English"), the API returns a
+// translated summary and the result is cached under a separate key so it does not
+// overwrite the original-language cache.
 //
 // When forceRefresh is true, the cache is bypassed only if the cached file is
 // older than 10 minutes; otherwise the cached copy is still returned as-is.
-func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh bool) (*SummaryResult, error) {
-	const cacheType = "summary"
+func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh bool, translation string) (*SummaryResult, error) {
+	cacheType := "summary"
+	if translation != "" {
+		cacheType = "summary_" + translation
+	}
 
 	skipCache := false
 	if forceRefresh {
-		stale, err := cache.IsStale(seq, cacheType, 10*time.Minute)
-		if err != nil {
-			return nil, fmt.Errorf("cache: %w", err)
-		}
+		stale, _ := cache.IsStale(seq, cacheType, 10*time.Minute)
 		skipCache = stale
 	}
 
 	if !skipCache {
 		var cached SummaryResult
-		if hit, err := cache.Read(seq, cacheType, &cached); err != nil {
-			return nil, fmt.Errorf("cache: %w", err)
-		} else if hit {
+		if hit, err := cache.Read(seq, cacheType, &cached); err == nil && hit && cached.Episode != nil {
 			return &cached, nil
 		}
 	}
 
+	var query url.Values
+	if translation != "" {
+		query = url.Values{"translation": {translation}}
+	}
+
 	var resp summaryResponse
 	apiPath := fmt.Sprintf("/open/v1/episodes/%d/summary", seq)
-	if err := client.Get(ctx, apiPath, nil, &resp); err != nil {
+	if err := client.Get(ctx, apiPath, query, &resp); err != nil {
 		return nil, formatSummaryError(err)
 	}
 
+	resp.Result.Episode = &resp.Episode
 	if err := cache.Write(seq, cacheType, resp.Result); err != nil {
 		fmt.Printf("warning: could not write cache: %v\n", err)
 	}
@@ -218,6 +247,8 @@ func formatSummaryError(err error) error {
 		return fmt.Errorf("episode does not exist")
 	case "not_transcribed":
 		return fmt.Errorf("episode has not been processed yet")
+	case "not_translated":
+		return fmt.Errorf("episode has not been translated yet")
 	default:
 		return err
 	}

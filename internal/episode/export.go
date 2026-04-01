@@ -14,8 +14,6 @@ type NotionExportOptions struct {
 	Transcripts bool
 	// Mindmap controls whether to include the mind map.
 	Mindmap bool
-	// MixOutlines controls whether to group transcript by outline sections.
-	MixOutlines bool
 	// Translation is the target language code (e.g., "zh", "ja").
 	// Empty string means no translation.
 	Translation string
@@ -59,15 +57,13 @@ func ExportToNotion(ctx context.Context, client *api.Client, seq int, opts Notio
 	if opts.Mindmap {
 		body["mindmap"] = true
 	}
-	if opts.MixOutlines {
-		body["mixOutlines"] = true
-	}
 	if opts.Translation != "" {
 		body["translation"] = opts.Translation
 	}
 	if opts.MixWithOriginLanguage {
 		body["mixWithOriginLanguage"] = true
 	}
+	body["mixOutlines"] = false
 
 	var resp notionExportResponse
 	if err := client.Post(ctx, apiPath, body, &resp); err != nil {
@@ -115,8 +111,6 @@ func formatNotionError(err error) error {
 type ReadwiseExportOptions struct {
 	// Mindmap controls whether to include the mind map as nested list.
 	Mindmap bool
-	// MixOutlines controls whether to group transcript by outline sections.
-	MixOutlines bool
 	// Shownotes controls whether to include episode shownotes.
 	Shownotes bool
 	// Location specifies where to save in Reader: "new" (inbox), "later", or "archive".
@@ -154,10 +148,6 @@ func ExportToReadwise(ctx context.Context, client *api.Client, seq int, opts Rea
 	if opts.Mindmap {
 		body["mindmap"] = true
 	}
-	// mixOutlines defaults to true in the API, so only set if false
-	if !opts.MixOutlines {
-		body["mixOutlines"] = false
-	}
 	if opts.Shownotes {
 		body["shownotes"] = true
 	}
@@ -170,6 +160,7 @@ func ExportToReadwise(ctx context.Context, client *api.Client, seq int, opts Rea
 	if opts.MixWithOriginLanguage {
 		body["mixWithOriginLanguage"] = true
 	}
+	body["mixOutlines"] = false
 
 	var resp readwiseExportResponse
 	if err := client.Post(ctx, apiPath, body, &resp); err != nil {

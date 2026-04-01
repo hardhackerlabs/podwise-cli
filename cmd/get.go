@@ -129,12 +129,12 @@ func runGetTranscript(cmd *cobra.Command, args []string) error {
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	segments, err := episode.FetchTranscripts(context.Background(), client, seq, forceRefresh)
+	result, err := episode.FetchTranscripts(context.Background(), client, seq, forceRefresh, "")
 	if err != nil {
 		return err
 	}
 
-	return printTranscript(segments, transcriptFormat, transcriptSeconds)
+	return printTranscript(result.Segments, transcriptFormat, transcriptSeconds)
 }
 
 // printTranscript dispatches to the appropriate format renderer.
@@ -229,5 +229,5 @@ func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	return episode.FetchSummary(context.Background(), client, seq, forceRefresh)
+	return episode.FetchSummary(context.Background(), client, seq, forceRefresh, "")
 }
