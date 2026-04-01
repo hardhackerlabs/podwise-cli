@@ -131,7 +131,7 @@ func (r *SummaryResult) FormatChapters() string {
 		if ch.HasAds {
 			adLabel = " [ad]"
 		}
-		fmt.Fprintf(&sb, "### [%s] Chapter %d: %s%s\n\n", ch.Time, i+1, ch.Title, adLabel)
+		fmt.Fprintf(&sb, "### [%s] Chapter %d: %s%s\n\n", trimTime(ch.Time), i+1, ch.Title, adLabel)
 		if ch.Summary != "" {
 			fmt.Fprintf(&sb, "%s\n", ch.Summary)
 		}
@@ -155,7 +155,7 @@ func (r *SummaryResult) FormatHighlights() string {
 	}
 	var sb strings.Builder
 	for i, h := range r.Highlights {
-		fmt.Fprintf(&sb, "%d. [%s] %s\n", i+1, h.Time, h.Content)
+		fmt.Fprintf(&sb, "%d. [%s] %s\n", i+1, trimTime(h.Time), h.Content)
 	}
 	return sb.String()
 }

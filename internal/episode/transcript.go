@@ -140,7 +140,7 @@ func segmentTimeLabel(seg Segment, useSeconds bool) string {
 	if useSeconds {
 		return strconv.FormatFloat(seg.Start/1000, 'f', -1, 64)
 	}
-	return seg.Time
+	return trimTime(seg.Time)
 }
 
 // ─── Formatters ───────────────────────────────────────────────────────────────

@@ -67,3 +67,18 @@ func IsXiaoyuzhouURL(rawURL string) bool {
 	}
 	return u.Hostname() == "www.xiaoyuzhoufm.com" && strings.HasPrefix(u.Path, "/episode/")
 }
+
+// trimTime removes a leading "00:" hour prefix from a time string only when
+// the remainder is still a valid mm:ss[-based] string (contains at least one
+// more colon). Examples:
+//
+//	"00:01:02" → "01:02"
+//	"00:00:05" → "00:05"
+//	"01:02:03" → "01:02:03"  (hour is non-zero, unchanged)
+//	"00:05"    → "00:05"     (already mm:ss, unchanged)
+func trimTime(s string) string {
+	if strings.HasPrefix(s, "00:") && strings.ContainsRune(s[3:], ':') {
+		return s[3:]
+	}
+	return s
+}
