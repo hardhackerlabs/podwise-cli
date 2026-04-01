@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/config"
@@ -21,20 +22,19 @@ var exportCmd = &cobra.Command{
 }
 
 // Notion export flags
-var (
-	notionMindmap     bool
-	notionTranslation string
-)
+var notionLang string
 
 // Readwise export flags
 var (
-	readwiseMindmap     bool
-	readwiseTranslation string
-	readwiseLocation    string
+	readwiseLang     string
+	readwiseLocation string
 )
 
 // Obsidian export flags
-var obsidianPath string
+var (
+	obsidianFolder string
+	obsidianLang   string
+)
 
 // podwise export notion <episode-url>
 var exportNotionCmd = &cobra.Command{
@@ -47,24 +47,38 @@ Visit https://podwise.ai/dashboard/settings to set up Notion integration.
 
 The command creates a new page in your configured Notion database with the episode content.`,
 	Example: `  podwise export notion https://podwise.ai/dashboard/episodes/7360326
-  podwise export notion https://podwise.ai/dashboard/episodes/7360326 --translation zh`,
+  podwise export notion https://podwise.ai/dashboard/episodes/7360326 --lang Chinese`,
 	Args: cobra.ExactArgs(1),
 	RunE: runExportNotion,
 }
 
 func init() {
-	exportNotionCmd.Flags().BoolVar(&notionMindmap, "mindmap", false, "include mind map (limited to 3 nesting levels)")
-	exportNotionCmd.Flags().StringVar(&notionTranslation, "translation", "", "translation language code (e.g., zh, ja)")
+	langUsage := "export the translated version in this language: " + strings.Join(episode.LanguageNames(), ", ")
 
-	exportReadwiseCmd.Flags().BoolVar(&readwiseMindmap, "mindmap", false, "include mind map as nested list")
-	exportReadwiseCmd.Flags().StringVar(&readwiseTranslation, "translation", "", "translation language code (e.g., zh, ja)")
+	exportNotionCmd.Flags().StringVar(&notionLang, "lang", "", langUsage)
+
+	exportReadwiseCmd.Flags().StringVar(&readwiseLang, "lang", "", langUsage)
 	exportReadwiseCmd.Flags().StringVar(&readwiseLocation, "location", "archive", "where to save in Reader: new (inbox), later, archive")
 
-	exportObsidianCmd.Flags().StringVar(&obsidianPath, "path", "Podwise", "vault-relative folder path for the note (e.g. Podwise/2026)")
+	exportObsidianCmd.Flags().StringVar(&obsidianFolder, "folder", "", "vault-relative folder to place the note in (e.g. Podcasts/2026); defaults to vault root")
+	exportObsidianCmd.Flags().StringVar(&obsidianLang, "lang", "", langUsage)
 
 	exportCmd.AddCommand(exportNotionCmd)
 	exportCmd.AddCommand(exportReadwiseCmd)
 	exportCmd.AddCommand(exportObsidianCmd)
+}
+
+// resolveLang converts a language name (CLI input) to the API code.
+// Returns an error listing valid names when the name is not recognised.
+func resolveLang(name string) (string, error) {
+	if name == "" {
+		return "", nil
+	}
+	lang, ok := episode.LookupLanguage(name)
+	if !ok {
+		return "", fmt.Errorf("unsupported language %q: available languages are %s", name, strings.Join(episode.LanguageNames(), ", "))
+	}
+	return lang.Code, nil
 }
 
 func runExportNotion(cmd *cobra.Command, args []string) error {
@@ -81,10 +95,15 @@ func runExportNotion(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	translationCode, err := resolveLang(notionLang)
+	if err != nil {
+		return err
+	}
+
 	opts := episode.NotionExportOptions{
 		Transcripts:           true,
-		Mindmap:               notionMindmap,
-		Translation:           notionTranslation,
+		Mindmap:               false,
+		Translation:           translationCode,
 		MixWithOriginLanguage: false,
 	}
 
@@ -120,7 +139,7 @@ Visit https://podwise.ai/dashboard/settings to set up Readwise integration.
 The command creates a new document in your Readwise Reader with the episode content.`,
 	Example: `  podwise export readwise https://podwise.ai/dashboard/episodes/7360326
   podwise export readwise https://podwise.ai/dashboard/episodes/7360326 --location later
-  podwise export readwise https://podwise.ai/dashboard/episodes/7360326 --translation zh`,
+  podwise export readwise https://podwise.ai/dashboard/episodes/7360326 --lang Chinese`,
 	Args: cobra.ExactArgs(1),
 	RunE: runExportReadwise,
 }
@@ -144,9 +163,14 @@ func runExportReadwise(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid location %q: must be one of: new, later, archive", readwiseLocation)
 	}
 
+	translationCode, err := resolveLang(readwiseLang)
+	if err != nil {
+		return err
+	}
+
 	opts := episode.ReadwiseExportOptions{
-		Mindmap:               readwiseMindmap,
-		Translation:           readwiseTranslation,
+		Mindmap:               false,
+		Translation:           translationCode,
 		Location:              readwiseLocation,
 		Shownotes:             false,
 		MixWithOriginLanguage: false,
@@ -172,7 +196,7 @@ func runExportReadwise(cmd *cobra.Command, args []string) error {
 var exportObsidianCmd = &cobra.Command{
 	Use:   "obsidian <episode-url>",
 	Short: "Export episode content to Obsidian",
-	Long: `Export episode summary and transcript as a Markdown note.
+	Long: `Export a processed episode's content to your Obsidian vault.
 
 If the obsidian CLI is found in PATH, the note is created in the active vault
 under the folder specified by --path (default: Podwise) and opened immediately.
@@ -181,9 +205,11 @@ If not, the .md file is written to the current directory with instructions for
 manual import (drag into File Explorer or copy to vault folder).
 
   obsidian CLI: https://obsidian.md/help/cli`,
-	Example: `  podwise export obsidian https://podwise.ai/dashboard/episodes/7360326`,
-	Args:    cobra.ExactArgs(1),
-	RunE:    runExportObsidian,
+	Example: `  podwise export obsidian https://podwise.ai/dashboard/episodes/7360326
+  podwise export obsidian https://podwise.ai/dashboard/episodes/7360326 --lang Chinese
+  podwise export obsidian https://podwise.ai/dashboard/episodes/7360326 --folder Podcasts/2026`,
+	Args: cobra.ExactArgs(1),
+	RunE: runExportObsidian,
 }
 
 func runExportObsidian(cmd *cobra.Command, args []string) error {
@@ -200,8 +226,15 @@ func runExportObsidian(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if obsidianLang != "" {
+		if _, ok := episode.LookupLanguage(obsidianLang); !ok {
+			return fmt.Errorf("unsupported language %q: available languages are %s", obsidianLang, strings.Join(episode.LanguageNames(), ", "))
+		}
+	}
+
 	opts := episode.ObsidianExportOptions{
-		VaultPath: obsidianPath,
+		Folder:      obsidianFolder,
+		Translation: strings.ReplaceAll(obsidianLang, "-", " "),
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)

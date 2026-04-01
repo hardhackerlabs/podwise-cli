@@ -15,9 +15,13 @@ import (
 
 // ObsidianExportOptions holds parameters for exporting to Obsidian.
 type ObsidianExportOptions struct {
-	// VaultPath is the vault-relative folder where the note will be created.
-	// Defaults to "Podwise". Only used when the obsidian CLI is available.
-	VaultPath string
+	// Folder is the vault-relative folder where the note will be created.
+	// Empty string places the note at the vault root.
+	// Only used when the obsidian CLI is available.
+	Folder string
+	// Translation is the language code for fetching a pre-translated version.
+	// Empty string means use the original language.
+	Translation string
 }
 
 // ObsidianExportResult holds the result of an Obsidian export.
@@ -119,12 +123,12 @@ func buildObsidianMarkdown(seq int, title string, summary *SummaryResult, segmen
 // When the CLI is absent the note is written to the current working directory
 // and ImportedWithCLI is false.
 func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts ObsidianExportOptions) (*ObsidianExportResult, error) {
-	summary, err := FetchSummary(ctx, client, seq, false, "")
+	summary, err := FetchSummary(ctx, client, seq, false, opts.Translation)
 	if err != nil {
 		return nil, fmt.Errorf("fetch summary: %w", err)
 	}
 
-	transcriptResult, err := FetchTranscripts(ctx, client, seq, false, "")
+	transcriptResult, err := FetchTranscripts(ctx, client, seq, false, opts.Translation)
 	if err != nil {
 		return nil, fmt.Errorf("fetch transcript: %w", err)
 	}
@@ -141,20 +145,20 @@ func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts Obs
 	result := &ObsidianExportResult{}
 
 	// ── Path 1: obsidian CLI available ────────────────────────────────────────
-	// `obsidian create name=<file> path=<folder>/ content=<md> open overwrite`
-	// path= is vault-relative; no vault-path lookup or directory creation needed.
+	// `obsidian create name=<file> [path=<folder>/] content=<md> open overwrite`
+	// path= is vault-relative; omitted when folder is empty (vault root).
 	if cliPath, lookErr := exec.LookPath("obsidian"); lookErr == nil {
-		vaultPath := strings.TrimSuffix(opts.VaultPath, "/") + "/"
-		args := []string{
-			"create",
-			"name=" + filename,
-			"path=" + vaultPath,
-			"content=" + md,
-			"open",
-			"overwrite",
+		args := []string{"create", "name=" + filename}
+		if opts.Folder != "" {
+			args = append(args, "path="+strings.TrimSuffix(opts.Folder, "/")+"/")
 		}
+		args = append(args, "content="+md, "open", "overwrite")
 		if runErr := exec.CommandContext(ctx, cliPath, args...).Run(); runErr == nil {
-			result.FilePath = strings.TrimSuffix(opts.VaultPath, "/") + "/" + filename
+			if opts.Folder != "" {
+				result.FilePath = strings.TrimSuffix(opts.Folder, "/") + "/" + filename
+			} else {
+				result.FilePath = filename
+			}
 			result.ImportedWithCLI = true
 			return result, nil
 		}
