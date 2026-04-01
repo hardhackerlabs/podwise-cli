@@ -180,34 +180,34 @@ func mcpSearchLimit(in int) int {
 	return in
 }
 
-func mcpSearchEpisode(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpSearchEpisode(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput) (*mcp.CallToolResult, any, error) {
 	if in.Query == "" {
-		return nil, struct{}{}, fmt.Errorf("query must not be empty")
+		return nil, nil, fmt.Errorf("query must not be empty")
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := episode.Search(ctx, client, in.Query, mcpSearchLimit(in.Limit))
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText(in.Query)), struct{}{}, nil
+	return textResult(result.FormatText(in.Query)), nil, nil
 }
 
-func mcpSearchPodcast(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpSearchPodcast(ctx context.Context, req *mcp.CallToolRequest, in mcpSearchInput) (*mcp.CallToolResult, any, error) {
 	if in.Query == "" {
-		return nil, struct{}{}, fmt.Errorf("query must not be empty")
+		return nil, nil, fmt.Errorf("query must not be empty")
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := podcast.SearchPodcasts(ctx, client, in.Query, mcpSearchLimit(in.Limit))
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText(in.Query)), struct{}{}, nil
+	return textResult(result.FormatText(in.Query)), nil, nil
 }
 
 // ─── Tool: process ────────────────────────────────────────────────────────────
@@ -218,14 +218,14 @@ type mcpProcessInput struct {
 	Hotwords string `json:"hotwords,omitempty" jsonschema:"comma-separated hotwords to improve transcription accuracy (local files only)"`
 }
 
-func mcpProcess(ctx context.Context, req *mcp.CallToolRequest, in mcpProcessInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpProcess(ctx context.Context, req *mcp.CallToolRequest, in mcpProcessInput) (*mcp.CallToolResult, any, error) {
 	if in.Input == "" {
-		return nil, struct{}{}, fmt.Errorf("input must not be empty")
+		return nil, nil, fmt.Errorf("input must not be empty")
 	}
 
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 
 	resolved, err := episode.ResolveInput(ctx, client, in.Input, episode.ResolveOptions{
@@ -233,7 +233,7 @@ func mcpProcess(ctx context.Context, req *mcp.CallToolRequest, in mcpProcessInpu
 		Hotwords: in.Hotwords,
 	})
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 
 	var sb strings.Builder
@@ -304,31 +304,31 @@ type mcpGetTranscriptInput struct {
 	Seconds    bool   `json:"seconds,omitempty"    jsonschema:"show timestamps as seconds instead of hh:mm:ss"`
 }
 
-func mcpGetTranscript(ctx context.Context, req *mcp.CallToolRequest, in mcpGetTranscriptInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpGetTranscript(ctx context.Context, req *mcp.CallToolRequest, in mcpGetTranscriptInput) (*mcp.CallToolResult, any, error) {
 	seq, err := episode.ParseSeq(in.EpisodeURL)
 	if err != nil {
-		return nil, struct{}{}, fmt.Errorf("invalid episode URL: %w", err)
+		return nil, nil, fmt.Errorf("invalid episode URL: %w", err)
 	}
 
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 
 	segments, err := episode.FetchTranscripts(ctx, client, seq, false)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 
 	switch in.Format {
 	case "text", "":
-		return textResult(episode.FormatTranscriptText(segments, in.Seconds)), struct{}{}, nil
+		return textResult(episode.FormatTranscriptText(segments, in.Seconds)), nil, nil
 	case "srt":
-		return textResult(episode.FormatTranscriptSRT(segments)), struct{}{}, nil
+		return textResult(episode.FormatTranscriptSRT(segments)), nil, nil
 	case "vtt":
-		return textResult(episode.FormatTranscriptVTT(segments)), struct{}{}, nil
+		return textResult(episode.FormatTranscriptVTT(segments)), nil, nil
 	default:
-		return nil, struct{}{}, fmt.Errorf("unknown format %q: use text, srt, or vtt", in.Format)
+		return nil, nil, fmt.Errorf("unknown format %q: use text, srt, or vtt", in.Format)
 	}
 }
 
@@ -338,86 +338,86 @@ type mcpEpisodeInput struct {
 	EpisodeURL string `json:"episode_url" jsonschema:"Podwise episode URL (https://podwise.ai/dashboard/episodes/<id>)"`
 }
 
-func mcpGetSummary(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpGetSummary(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, any, error) {
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatSummary()), struct{}{}, nil
+	return textResult(result.FormatSummary()), nil, nil
 }
 
 // ─── Tool: get_qa ─────────────────────────────────────────────────────────────
 
-func mcpGetQA(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpGetQA(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, any, error) {
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatQA()), struct{}{}, nil
+	return textResult(result.FormatQA()), nil, nil
 }
 
 // ─── Tool: get_chapters ───────────────────────────────────────────────────────
 
-func mcpGetChapters(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpGetChapters(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, any, error) {
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatChapters()), struct{}{}, nil
+	return textResult(result.FormatChapters()), nil, nil
 }
 
 // ─── Tool: get_mindmap ────────────────────────────────────────────────────────
 
-func mcpGetMindmap(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpGetMindmap(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, any, error) {
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatMindmap()), struct{}{}, nil
+	return textResult(result.FormatMindmap()), nil, nil
 }
 
 // ─── Tool: get_highlights ─────────────────────────────────────────────────────
 
-func mcpGetHighlights(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpGetHighlights(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, any, error) {
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatHighlights()), struct{}{}, nil
+	return textResult(result.FormatHighlights()), nil, nil
 }
 
 // ─── Tool: get_keywords ───────────────────────────────────────────────────────
 
-func mcpGetKeywords(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpGetKeywords(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, any, error) {
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatKeywords()), struct{}{}, nil
+	return textResult(result.FormatKeywords()), nil, nil
 }
 
 // ─── Tool: drill ──────────────────────────────────────────────────────────────
@@ -427,14 +427,14 @@ type mcpDrillInput struct {
 	Latest     int    `json:"latest,omitempty" jsonschema:"look back N days ending today (1-365, default 30)"`
 }
 
-func mcpDrill(ctx context.Context, req *mcp.CallToolRequest, in mcpDrillInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpDrill(ctx context.Context, req *mcp.CallToolRequest, in mcpDrillInput) (*mcp.CallToolResult, any, error) {
 	if in.PodcastURL == "" {
-		return nil, struct{}{}, fmt.Errorf("podcast_url must not be empty")
+		return nil, nil, fmt.Errorf("podcast_url must not be empty")
 	}
 
 	podcastSeq, err := podcast.ParseSeq(in.PodcastURL)
 	if err != nil {
-		return nil, struct{}{}, fmt.Errorf("invalid podcast URL: %w", err)
+		return nil, nil, fmt.Errorf("invalid podcast URL: %w", err)
 	}
 
 	days := in.Latest
@@ -447,16 +447,16 @@ func mcpDrill(ctx context.Context, req *mcp.CallToolRequest, in mcpDrillInput) (
 
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 
 	date := episode.Today()
 	result, err := podcast.FetchPodcastEpisodes(ctx, client, podcastSeq, date, days)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 
-	return textResult(result.FormatText(date, days)), struct{}{}, nil
+	return textResult(result.FormatText(date, days)), nil, nil
 }
 
 // ─── Tool: follow ─────────────────────────────────────────────────────────────
@@ -465,42 +465,42 @@ type mcpPodcastInput struct {
 	PodcastURL string `json:"podcast_url" jsonschema:"Podwise podcast URL (https://podwise.ai/dashboard/podcasts/<id>)"`
 }
 
-func mcpFollow(ctx context.Context, req *mcp.CallToolRequest, in mcpPodcastInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpFollow(ctx context.Context, req *mcp.CallToolRequest, in mcpPodcastInput) (*mcp.CallToolResult, any, error) {
 	if in.PodcastURL == "" {
-		return nil, struct{}{}, fmt.Errorf("podcast_url must not be empty")
+		return nil, nil, fmt.Errorf("podcast_url must not be empty")
 	}
 	seq, err := podcast.ParseSeq(in.PodcastURL)
 	if err != nil {
-		return nil, struct{}{}, fmt.Errorf("invalid podcast URL: %w", err)
+		return nil, nil, fmt.Errorf("invalid podcast URL: %w", err)
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	if err := podcast.Follow(ctx, client, seq); err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(fmt.Sprintf("Following podcast %s", podcast.BuildPodcastURL(seq))), struct{}{}, nil
+	return textResult(fmt.Sprintf("Following podcast %s", podcast.BuildPodcastURL(seq))), nil, nil
 }
 
 // ─── Tool: unfollow ───────────────────────────────────────────────────────────
 
-func mcpUnfollow(ctx context.Context, req *mcp.CallToolRequest, in mcpPodcastInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpUnfollow(ctx context.Context, req *mcp.CallToolRequest, in mcpPodcastInput) (*mcp.CallToolResult, any, error) {
 	if in.PodcastURL == "" {
-		return nil, struct{}{}, fmt.Errorf("podcast_url must not be empty")
+		return nil, nil, fmt.Errorf("podcast_url must not be empty")
 	}
 	seq, err := podcast.ParseSeq(in.PodcastURL)
 	if err != nil {
-		return nil, struct{}{}, fmt.Errorf("invalid podcast URL: %w", err)
+		return nil, nil, fmt.Errorf("invalid podcast URL: %w", err)
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	if err := podcast.Unfollow(ctx, client, seq); err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(fmt.Sprintf("Unfollowed podcast %s", podcast.BuildPodcastURL(seq))), struct{}{}, nil
+	return textResult(fmt.Sprintf("Unfollowed podcast %s", podcast.BuildPodcastURL(seq))), nil, nil
 }
 
 // ─── Tool: list_episodes ──────────────────────────────────────────────────────
@@ -510,38 +510,38 @@ type mcpListInput struct {
 	Latest int    `json:"latest,omitempty" jsonschema:"look back N days ending today (1-30, default 7); ignored when date is set"`
 }
 
-func mcpListEpisodes(ctx context.Context, req *mcp.CallToolRequest, in mcpListInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpListEpisodes(ctx context.Context, req *mcp.CallToolRequest, in mcpListInput) (*mcp.CallToolResult, any, error) {
 	date, days, err := resolveListDateDays(in.Date, in.Latest, 30)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := episode.FetchFollowedEpisodes(ctx, client, date, days)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText(date, days)), struct{}{}, nil
+	return textResult(result.FormatText(date, days)), nil, nil
 }
 
 // ─── Tool: list_podcasts ──────────────────────────────────────────────────────
 
-func mcpListPodcasts(ctx context.Context, req *mcp.CallToolRequest, in mcpListInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpListPodcasts(ctx context.Context, req *mcp.CallToolRequest, in mcpListInput) (*mcp.CallToolResult, any, error) {
 	date, days, err := resolveListDateDays(in.Date, in.Latest, 30)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := podcast.FetchFollowedPodcasts(ctx, client, date, days)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText(date, days)), struct{}{}, nil
+	return textResult(result.FormatText(date, days)), nil, nil
 }
 
 // resolveListDateDays converts the MCP date/latest inputs into a canonical
@@ -570,7 +570,7 @@ type mcpPopularInput struct {
 	Limit int `json:"limit,omitempty" jsonschema:"number of results to return (1-50, default 10)"`
 }
 
-func mcpPopular(ctx context.Context, req *mcp.CallToolRequest, in mcpPopularInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpPopular(ctx context.Context, req *mcp.CallToolRequest, in mcpPopularInput) (*mcp.CallToolResult, any, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = defaultPopularLimit
@@ -580,13 +580,13 @@ func mcpPopular(ctx context.Context, req *mcp.CallToolRequest, in mcpPopularInpu
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := episode.FetchPopular(ctx, client, limit)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText()), struct{}{}, nil
+	return textResult(result.FormatText()), nil, nil
 }
 
 // ─── Tool: ask ────────────────────────────────────────────────────────────────
@@ -596,19 +596,19 @@ type mcpAskInput struct {
 	ShowSources bool   `json:"show_sources,omitempty" jsonschema:"if true, include cited source excerpts and episode links in the response"`
 }
 
-func mcpAsk(ctx context.Context, req *mcp.CallToolRequest, in mcpAskInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpAsk(ctx context.Context, req *mcp.CallToolRequest, in mcpAskInput) (*mcp.CallToolResult, any, error) {
 	if in.Question == "" {
-		return nil, struct{}{}, fmt.Errorf("question must not be empty")
+		return nil, nil, fmt.Errorf("question must not be empty")
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := ask.Ask(ctx, client, in.Question)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText(in.Question, in.ShowSources)), struct{}{}, nil
+	return textResult(result.FormatText(in.Question, in.ShowSources)), nil, nil
 }
 
 // ─── Tool: history_read ───────────────────────────────────────────────────────
@@ -617,7 +617,7 @@ type mcpHistoryInput struct {
 	Limit int `json:"limit,omitempty" jsonschema:"maximum number of results to return (1-100, default 20)"`
 }
 
-func mcpHistoryRead(ctx context.Context, req *mcp.CallToolRequest, in mcpHistoryInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpHistoryRead(ctx context.Context, req *mcp.CallToolRequest, in mcpHistoryInput) (*mcp.CallToolResult, any, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 20
@@ -627,18 +627,18 @@ func mcpHistoryRead(ctx context.Context, req *mcp.CallToolRequest, in mcpHistory
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := episode.FetchReadHistory(ctx, client, limit)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText()), struct{}{}, nil
+	return textResult(result.FormatText()), nil, nil
 }
 
 // ─── Tool: history_listened ───────────────────────────────────────────────────
 
-func mcpHistoryListened(ctx context.Context, req *mcp.CallToolRequest, in mcpHistoryInput) (*mcp.CallToolResult, struct{}, error) {
+func mcpHistoryListened(ctx context.Context, req *mcp.CallToolRequest, in mcpHistoryInput) (*mcp.CallToolResult, any, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 20
@@ -648,11 +648,11 @@ func mcpHistoryListened(ctx context.Context, req *mcp.CallToolRequest, in mcpHis
 	}
 	client, err := mcpLoadClient()
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
 	result, err := episode.FetchPlayedHistory(ctx, client, limit)
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, nil, err
 	}
-	return textResult(result.FormatText()), struct{}{}, nil
+	return textResult(result.FormatText()), nil, nil
 }
