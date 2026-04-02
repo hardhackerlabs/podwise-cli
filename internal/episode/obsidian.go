@@ -113,6 +113,18 @@ func buildObsidianMarkdown(seq int, title string, summary *SummaryResult, segmen
 	return sb.String()
 }
 
+// obsidianVersionRe matches output like "1.12.7 (installer 1.12.7)".
+var obsidianVersionRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+
+// obsidianAppRunning returns true when the Obsidian app is reachable via CLI.
+// It runs `obsidian version` with a short timeout and checks the output format.
+func obsidianAppRunning(ctx context.Context, cliPath string) bool {
+	vCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(vCtx, cliPath, "version").Output()
+	return err == nil && obsidianVersionRe.Match(out)
+}
+
 // ExportToObsidian fetches the episode's summary and transcript and renders a
 // Markdown note.
 //
@@ -147,13 +159,19 @@ func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts Obs
 	// ── Path 1: obsidian CLI available ────────────────────────────────────────
 	// `obsidian create name=<file> [path=<folder>/] content=<md> open overwrite`
 	// path= is vault-relative; omitted when folder is empty (vault root).
-	if cliPath, lookErr := exec.LookPath("obsidian"); lookErr == nil {
+	if cliPath, lookErr := exec.LookPath("obsidian"); lookErr == nil && obsidianAppRunning(ctx, cliPath) {
 		args := []string{"create", "name=" + filename}
 		if opts.Folder != "" {
 			args = append(args, "path="+strings.TrimSuffix(opts.Folder, "/")+"/")
 		}
-		args = append(args, "content="+md, "open", "overwrite")
-		if runErr := exec.CommandContext(ctx, cliPath, args...).Run(); runErr == nil {
+		// The obsidian CLI requires the app to be running and expects \n/\t literals in content.
+		escapedMD := strings.ReplaceAll(md, "\t", `\t`)
+		escapedMD = strings.ReplaceAll(escapedMD, "\n", `\n`)
+		args = append(args, "content="+escapedMD, "overwrite")
+
+		cliCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		if runErr := exec.CommandContext(cliCtx, cliPath, args...).Run(); runErr == nil {
 			if opts.Folder != "" {
 				result.FilePath = strings.TrimSuffix(opts.Folder, "/") + "/" + filename
 			} else {

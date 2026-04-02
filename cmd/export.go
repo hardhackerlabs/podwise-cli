@@ -254,9 +254,12 @@ func runExportObsidian(cmd *cobra.Command, args []string) error {
 		fmt.Printf("\n✓ Markdown file saved\n")
 		fmt.Printf("  File: %s\n", result.FilePath)
 
-		fmt.Printf("\n  obsidian CLI not found — import the file manually:\n")
+		fmt.Printf("\n  To automate this next time:\n")
+		fmt.Printf("  • Install the Obsidian CLI: https://obsidian.md/cli\n")
+		fmt.Printf("  • Make sure the Obsidian app is running before exporting\n")
+		fmt.Printf("\n  To import manually:\n")
 		fmt.Printf("  • Drag and drop %s into the Obsidian File Explorer, or\n", result.FilePath)
-		fmt.Printf("  • Copy the file directly into your Obsidian vault folder using Finder / Explorer\n")
+		fmt.Printf("  • Copy the file directly into your Obsidian vault folder\n")
 	}
 
 	return nil
