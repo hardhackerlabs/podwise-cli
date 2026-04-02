@@ -19,9 +19,9 @@ type ObsidianExportOptions struct {
 	// Empty string places the note at the vault root.
 	// Only used when the obsidian CLI is available.
 	Folder string
-	// Translation is the language code for fetching a pre-translated version.
+	// Language is the language code for fetching a pre-translated version.
 	// Empty string means use the original language.
-	Translation string
+	Language string
 }
 
 // ObsidianExportResult holds the result of an Obsidian export.
@@ -135,12 +135,12 @@ func obsidianAppRunning(ctx context.Context, cliPath string) bool {
 // When the CLI is absent the note is written to the current working directory
 // and ImportedWithCLI is false.
 func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts ObsidianExportOptions) (*ObsidianExportResult, error) {
-	summary, err := FetchSummary(ctx, client, seq, false, opts.Translation)
+	summary, err := FetchSummary(ctx, client, seq, false, opts.Language)
 	if err != nil {
 		return nil, fmt.Errorf("fetch summary: %w", err)
 	}
 
-	transcriptResult, err := FetchTranscripts(ctx, client, seq, false, opts.Translation)
+	transcriptResult, err := FetchTranscripts(ctx, client, seq, false, opts.Language)
 	if err != nil {
 		return nil, fmt.Errorf("fetch transcript: %w", err)
 	}

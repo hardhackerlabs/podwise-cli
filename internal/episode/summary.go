@@ -183,19 +183,19 @@ type summaryResponse struct {
 }
 
 // FetchSummary returns the AI-generated summary result for the given episode seq.
-// Results are transparently cached in ~/.cache/podwise/<seq>_summary[_<translation>].json;
+// Results are transparently cached in ~/.cache/podwise/<seq>_summary[_<language>].json;
 // subsequent calls return the cached copy without hitting the network.
 //
-// When translation is non-empty (e.g. "Chinese", "English"), the API returns a
+// When language is non-empty (e.g. "Chinese", "English"), the API returns a
 // translated summary and the result is cached under a separate key so it does not
 // overwrite the original-language cache.
 //
 // When forceRefresh is true, the cache is bypassed only if the cached file is
 // older than 10 minutes; otherwise the cached copy is still returned as-is.
-func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh bool, translation string) (*SummaryResult, error) {
+func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh bool, language string) (*SummaryResult, error) {
 	cacheType := "summary"
-	if translation != "" {
-		cacheType = "summary_" + translation
+	if language != "" {
+		cacheType = "summary_" + language
 	}
 
 	skipCache := false
@@ -212,8 +212,8 @@ func FetchSummary(ctx context.Context, client *api.Client, seq int, forceRefresh
 	}
 
 	var query url.Values
-	if translation != "" {
-		query = url.Values{"translation": {translation}}
+	if language != "" {
+		query = url.Values{"translation": {strings.ReplaceAll(language, "-", " ")}}
 	}
 
 	var resp summaryResponse

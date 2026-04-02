@@ -1,6 +1,9 @@
 package episode
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Language represents a supported translation language.
 type Language struct {
@@ -38,4 +41,34 @@ func LanguageNames() []string {
 		names[i] = lang.Name
 	}
 	return names
+}
+
+// ResolveLangName validates name (case-insensitive) and returns the API-accepted
+// language name with hyphens replaced by spaces (e.g. "Traditional-Chinese" →
+// "Traditional Chinese"). Returns an empty string unchanged. Returns an error
+// listing valid names when the name is not recognised.
+func ResolveLangName(name string) (string, error) {
+	if name == "" {
+		return "", nil
+	}
+	lang, ok := LookupLanguage(name)
+	if !ok {
+		return "", fmt.Errorf("unsupported language %q: available languages are %s", name, strings.Join(LanguageNames(), ", "))
+	}
+	return strings.ReplaceAll(lang.Name, "-", " "), nil
+}
+
+// ResolveLangCode validates name (case-insensitive) and returns the BCP-47
+// language code used by export APIs (e.g. "Chinese" → "zh", "Traditional-Chinese"
+// → "zh-TW"). Returns an empty string unchanged. Returns an error listing valid
+// names when the name is not recognised.
+func ResolveLangCode(name string) (string, error) {
+	if name == "" {
+		return "", nil
+	}
+	lang, ok := LookupLanguage(name)
+	if !ok {
+		return "", fmt.Errorf("unsupported language %q: available languages are %s", name, strings.Join(LanguageNames(), ", "))
+	}
+	return lang.Code, nil
 }

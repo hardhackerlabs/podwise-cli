@@ -68,19 +68,6 @@ func init() {
 	exportCmd.AddCommand(exportObsidianCmd)
 }
 
-// resolveLang converts a language name (CLI input) to the API code.
-// Returns an error listing valid names when the name is not recognised.
-func resolveLang(name string) (string, error) {
-	if name == "" {
-		return "", nil
-	}
-	lang, ok := episode.LookupLanguage(name)
-	if !ok {
-		return "", fmt.Errorf("unsupported language %q: available languages are %s", name, strings.Join(episode.LanguageNames(), ", "))
-	}
-	return lang.Code, nil
-}
-
 func runExportNotion(cmd *cobra.Command, args []string) error {
 	seq, err := episode.ParseSeq(args[0])
 	if err != nil {
@@ -95,7 +82,7 @@ func runExportNotion(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	translationCode, err := resolveLang(notionLang)
+	translationCode, err := episode.ResolveLangCode(notionLang)
 	if err != nil {
 		return err
 	}
@@ -163,7 +150,7 @@ func runExportReadwise(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid location %q: must be one of: new, later, archive", readwiseLocation)
 	}
 
-	translationCode, err := resolveLang(readwiseLang)
+	translationCode, err := episode.ResolveLangCode(readwiseLang)
 	if err != nil {
 		return err
 	}
@@ -226,15 +213,13 @@ func runExportObsidian(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if obsidianLang != "" {
-		if _, ok := episode.LookupLanguage(obsidianLang); !ok {
-			return fmt.Errorf("unsupported language %q: available languages are %s", obsidianLang, strings.Join(episode.LanguageNames(), ", "))
-		}
+	if _, err := episode.ResolveLangName(obsidianLang); err != nil {
+		return err
 	}
 
 	opts := episode.ObsidianExportOptions{
-		Folder:      obsidianFolder,
-		Translation: strings.ReplaceAll(obsidianLang, "-", " "),
+		Folder:   obsidianFolder,
+		Language: obsidianLang,
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)

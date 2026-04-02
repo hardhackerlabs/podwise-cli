@@ -37,19 +37,19 @@ type transcriptResponse struct {
 }
 
 // FetchTranscripts returns the transcript segments for the given episode seq.
-// Results are transparently cached in ~/.cache/podwise/<seq>_transcript[_<translation>].json;
+// Results are transparently cached in ~/.cache/podwise/<seq>_transcript[_<language>].json;
 // subsequent calls return the cached copy without hitting the network.
 //
-// When translation is non-empty (e.g. "Chinese", "English"), the API returns
+// When language is non-empty (e.g. "Chinese", "English"), the API returns
 // translated segments and the result is cached under a separate key so it does
 // not overwrite the original-language cache.
 //
 // When forceRefresh is true, the cache is bypassed only if the cached file is
 // older than 10 minutes; otherwise the cached copy is still returned as-is.
-func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRefresh bool, translation string) (*TranscriptResult, error) {
+func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRefresh bool, language string) (*TranscriptResult, error) {
 	cacheType := "transcript"
-	if translation != "" {
-		cacheType = "transcript_" + translation
+	if language != "" {
+		cacheType = "transcript_" + language
 	}
 
 	skipCache := false
@@ -66,8 +66,8 @@ func FetchTranscripts(ctx context.Context, client *api.Client, seq int, forceRef
 	}
 
 	var query url.Values
-	if translation != "" {
-		query = url.Values{"translation": {translation}}
+	if language != "" {
+		query = url.Values{"translation": {strings.ReplaceAll(language, "-", " ")}}
 	}
 
 	var resp transcriptResponse

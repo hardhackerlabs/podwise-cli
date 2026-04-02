@@ -134,13 +134,13 @@ func runGetTranscript(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	translationName, err := resolveLangName(getLang)
+	language, err := episode.ResolveLangName(getLang)
 	if err != nil {
 		return err
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	result, err := episode.FetchTranscripts(context.Background(), client, seq, forceRefresh, translationName)
+	result, err := episode.FetchTranscripts(context.Background(), client, seq, forceRefresh, language)
 	if err != nil {
 		return err
 	}
@@ -223,20 +223,6 @@ func runGetKeywords(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// resolveLangName validates the language name and returns it as-is for use as
-// the API translation parameter. Returns an error listing valid names when the
-// name is not recognised.
-func resolveLangName(name string) (string, error) {
-	if name == "" {
-		return "", nil
-	}
-	lang, ok := episode.LookupLanguage(name)
-	if !ok {
-		return "", fmt.Errorf("unsupported language %q: available languages are %s", name, strings.Join(episode.LanguageNames(), ", "))
-	}
-	return strings.ReplaceAll(lang.Name, "-", " "), nil
-}
-
 // fetchSummaryForURL is a shared helper that parses the episode URL,
 // loads config, and fetches (or reads from cache) the summary result.
 func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
@@ -253,11 +239,11 @@ func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
 		return nil, err
 	}
 
-	translationName, err := resolveLangName(getLang)
+	language, err := episode.ResolveLangName(getLang)
 	if err != nil {
 		return nil, err
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	return episode.FetchSummary(context.Background(), client, seq, forceRefresh, translationName)
+	return episode.FetchSummary(context.Background(), client, seq, forceRefresh, language)
 }
