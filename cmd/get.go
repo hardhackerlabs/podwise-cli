@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/config"
@@ -27,6 +28,9 @@ var getCmd = &cobra.Command{
 // forceRefresh, when true, bypasses the cache for any get subcommand
 // but only if the cached file is older than 10 minutes.
 var forceRefresh bool
+
+// getLang is the optional translation language for any get subcommand.
+var getLang string
 
 // podwise get transcript <episode-url>
 var transcriptSeconds bool
@@ -102,7 +106,9 @@ var getKeywordsCmd = &cobra.Command{
 }
 
 func init() {
+	langUsage := "get the translated version in this language: " + strings.Join(episode.LanguageNames(), ", ")
 	getCmd.PersistentFlags().BoolVarP(&forceRefresh, "refresh", "r", false, "bypass cache and re-fetch from API (only if cached file is older than 10 minutes)")
+	getCmd.PersistentFlags().StringVar(&getLang, "lang", "", langUsage)
 	getTranscriptCmd.Flags().BoolVar(&transcriptSeconds, "seconds", false, "show time as start offset in seconds instead of hh:mm:ss")
 	getTranscriptCmd.Flags().StringVar(&transcriptFormat, "format", "text", "output format: text, json, srt, vtt")
 	getCmd.AddCommand(getTranscriptCmd)
@@ -128,8 +134,13 @@ func runGetTranscript(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	translationName, err := resolveLangName(getLang)
+	if err != nil {
+		return err
+	}
+
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	result, err := episode.FetchTranscripts(context.Background(), client, seq, forceRefresh, "")
+	result, err := episode.FetchTranscripts(context.Background(), client, seq, forceRefresh, translationName)
 	if err != nil {
 		return err
 	}
@@ -212,6 +223,20 @@ func runGetKeywords(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// resolveLangName validates the language name and returns it as-is for use as
+// the API translation parameter. Returns an error listing valid names when the
+// name is not recognised.
+func resolveLangName(name string) (string, error) {
+	if name == "" {
+		return "", nil
+	}
+	lang, ok := episode.LookupLanguage(name)
+	if !ok {
+		return "", fmt.Errorf("unsupported language %q: available languages are %s", name, strings.Join(episode.LanguageNames(), ", "))
+	}
+	return strings.ReplaceAll(lang.Name, "-", " "), nil
+}
+
 // fetchSummaryForURL is a shared helper that parses the episode URL,
 // loads config, and fetches (or reads from cache) the summary result.
 func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
@@ -228,6 +253,11 @@ func fetchSummaryForURL(rawURL string) (*episode.SummaryResult, error) {
 		return nil, err
 	}
 
+	translationName, err := resolveLangName(getLang)
+	if err != nil {
+		return nil, err
+	}
+
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
-	return episode.FetchSummary(context.Background(), client, seq, forceRefresh, "")
+	return episode.FetchSummary(context.Background(), client, seq, forceRefresh, translationName)
 }
