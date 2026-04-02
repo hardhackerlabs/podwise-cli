@@ -185,13 +185,11 @@ var exportObsidianCmd = &cobra.Command{
 	Short: "Export episode content to Obsidian",
 	Long: `Export a processed episode's content to your Obsidian vault.
 
-If the obsidian CLI is found in PATH, the note is created in the active vault
-under the folder specified by --path (default: Podwise) and opened immediately.
+The vault is located automatically from Obsidian's configuration file
+(obsidian.json). 
 
-If not, the .md file is written to the current directory with instructions for
-manual import (drag into File Explorer or copy to vault folder).
-
-  obsidian CLI: https://obsidian.md/help/cli`,
+If no vault can be found the .md file is written to the current directory
+with instructions for manual import.`,
 	Example: `  podwise export obsidian https://podwise.ai/dashboard/episodes/7360326
   podwise export obsidian https://podwise.ai/dashboard/episodes/7360326 --lang Chinese
   podwise export obsidian https://podwise.ai/dashboard/episodes/7360326 --folder Podcasts/2026`,
@@ -232,16 +230,12 @@ func runExportObsidian(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if result.ImportedWithCLI {
-		fmt.Printf("\n✓ Imported to Obsidian vault and opened\n")
-		fmt.Printf("  Vault path: %s\n", result.FilePath)
+	if result.WrittenToVault {
+		fmt.Printf("\n✓ Saved to Obsidian vault\n")
+		fmt.Printf("  Path: %s\n", result.FilePath)
 	} else {
-		fmt.Printf("\n✓ Markdown file saved\n")
+		fmt.Printf("\n✓ Markdown file saved (Obsidian vault not found)\n")
 		fmt.Printf("  File: %s\n", result.FilePath)
-
-		fmt.Printf("\n  To automate this next time:\n")
-		fmt.Printf("  • Install the Obsidian CLI: https://obsidian.md/cli\n")
-		fmt.Printf("  • Make sure the Obsidian app is running before exporting\n")
 		fmt.Printf("\n  To import manually:\n")
 		fmt.Printf("  • Drag and drop %s into the Obsidian File Explorer, or\n", result.FilePath)
 		fmt.Printf("  • Copy the file directly into your Obsidian vault folder\n")

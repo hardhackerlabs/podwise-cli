@@ -2,9 +2,9 @@ package episode
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -28,8 +28,73 @@ type ObsidianExportOptions struct {
 type ObsidianExportResult struct {
 	// FilePath is the absolute path to the generated markdown file.
 	FilePath string
-	// ImportedWithCLI indicates whether obsidian-cli was used to open the file.
-	ImportedWithCLI bool
+	// WrittenToVault indicates whether the file was written directly into an
+	// Obsidian vault directory (true) or only to the current working directory
+	// as a fallback (false).
+	WrittenToVault bool
+}
+
+// obsidianVaultEntry represents one vault record inside obsidian.json.
+type obsidianVaultEntry struct {
+	Path string `json:"path"`
+	Ts   int64  `json:"ts"`
+	Open bool   `json:"open"`
+}
+
+// obsidianGlobalConfig is the top-level structure of obsidian.json.
+type obsidianGlobalConfig struct {
+	Vaults map[string]obsidianVaultEntry `json:"vaults"`
+}
+
+// obsidianConfigPath returns the platform-appropriate path to Obsidian's
+// global configuration file.
+//
+// macOS  : ~/Library/Application Support/obsidian/obsidian.json
+// Linux  : $XDG_CONFIG_HOME/obsidian/obsidian.json  (default ~/.config/…)
+// Windows: %APPDATA%\obsidian\obsidian.json
+func obsidianConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "obsidian", "obsidian.json"), nil
+}
+
+// findObsidianVault reads obsidian.json and returns the absolute path of the
+// most appropriate vault using this priority:
+//  1. The vault flagged open:true with the highest ts.
+//  2. Otherwise the vault with the highest ts.
+//
+// Returns ("", nil) when obsidian.json is absent or contains no vaults.
+func findObsidianVault() (string, error) {
+	cfgPath, err := obsidianConfigPath()
+	if err != nil {
+		return "", nil // config dir unavailable – treat as not found
+	}
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read obsidian config: %w", err)
+	}
+	var cfg obsidianGlobalConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return "", fmt.Errorf("parse obsidian config: %w", err)
+	}
+
+	var best obsidianVaultEntry
+	for _, v := range cfg.Vaults {
+		if best.Path == "" {
+			best = v
+			continue
+		}
+		// open vaults take priority; break ties by most-recently-used (ts).
+		if (!best.Open && v.Open) || (best.Open == v.Open && v.Ts > best.Ts) {
+			best = v
+		}
+	}
+	return best.Path, nil
 }
 
 var nonSafeFilenameRe = regexp.MustCompile(`[^\p{L}\p{N}\-_ ]+`)
@@ -113,27 +178,16 @@ func buildObsidianMarkdown(seq int, title string, summary *SummaryResult, segmen
 	return sb.String()
 }
 
-// obsidianVersionRe matches output like "1.12.7 (installer 1.12.7)".
-var obsidianVersionRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
-
-// obsidianAppRunning returns true when the Obsidian app is reachable via CLI.
-// It runs `obsidian version` with a short timeout and checks the output format.
-func obsidianAppRunning(ctx context.Context, cliPath string) bool {
-	vCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(vCtx, cliPath, "version").Output()
-	return err == nil && obsidianVersionRe.Match(out)
-}
-
-// ExportToObsidian fetches the episode's summary and transcript and renders a
-// Markdown note.
+// ExportToObsidian fetches the episode's summary and transcript, renders a
+// Markdown note, and writes it to the Obsidian vault when one can be located
+// automatically.
 //
-// When the `obsidian` CLI is present in PATH the note is created directly in
-// the active vault via `obsidian create` (path= is vault-relative) and opened
-// in Obsidian.
-//
-// When the CLI is absent the note is written to the current working directory
-// and ImportedWithCLI is false.
+// Priority:
+//  1. Write directly into the Obsidian vault directory discovered via
+//     Obsidian's global config file (obsidian.json). This works whether or not
+//     the Obsidian app is running. WrittenToVault is set to true.
+//  2. Fallback: write the .md file to the current working directory and report
+//     instructions for manual import. WrittenToVault is false.
 func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts ObsidianExportOptions) (*ObsidianExportResult, error) {
 	summary, err := FetchSummary(ctx, client, seq, false, opts.Language)
 	if err != nil {
@@ -156,40 +210,32 @@ func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts Obs
 	filename := fmt.Sprintf("%s_%d.md", sanitizeFilename(title), seq)
 	result := &ObsidianExportResult{}
 
-	// ── Path 1: obsidian CLI available ────────────────────────────────────────
-	// `obsidian create name=<file> [path=<folder>/] content=<md> open overwrite`
-	// path= is vault-relative; omitted when folder is empty (vault root).
-	if cliPath, lookErr := exec.LookPath("obsidian"); lookErr == nil && obsidianAppRunning(ctx, cliPath) {
-		args := []string{"create", "name=" + filename}
+	// ── Path 1: write directly into the Obsidian vault ───────────────────────
+	// Locate the vault from obsidian.json; no app process required.
+	if vaultPath, vaultErr := findObsidianVault(); vaultErr == nil && vaultPath != "" {
+		destDir := vaultPath
 		if opts.Folder != "" {
-			args = append(args, "path="+strings.TrimSuffix(opts.Folder, "/")+"/")
+			// filepath.FromSlash converts forward-slash separators to the OS
+			// separator on Windows, keeping behaviour correct cross-platform.
+			destDir = filepath.Join(vaultPath, filepath.FromSlash(strings.TrimSuffix(opts.Folder, "/")))
 		}
-		// The obsidian CLI requires the app to be running and expects \n/\t literals in content.
-		escapedMD := strings.ReplaceAll(md, "\t", `\t`)
-		escapedMD = strings.ReplaceAll(escapedMD, "\n", `\n`)
-		args = append(args, "content="+escapedMD, "overwrite")
-
-		cliCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		if runErr := exec.CommandContext(cliCtx, cliPath, args...).Run(); runErr == nil {
-			if opts.Folder != "" {
-				result.FilePath = strings.TrimSuffix(opts.Folder, "/") + "/" + filename
-			} else {
-				result.FilePath = filename
+		if mkErr := os.MkdirAll(destDir, 0o755); mkErr == nil {
+			dest := filepath.Join(destDir, filename)
+			if writeErr := os.WriteFile(dest, []byte(md), 0o644); writeErr == nil {
+				result.FilePath = dest
+				result.WrittenToVault = true
+				return result, nil
 			}
-			result.ImportedWithCLI = true
-			return result, nil
 		}
 	}
 
-	// ── Path 2: no CLI – write to current working directory ──────────────────
-	filePath := filename
-	if err := os.WriteFile(filePath, []byte(md), 0o644); err != nil {
+	// ── Path 2: fallback – write to the current working directory ────────────
+	if err := os.WriteFile(filename, []byte(md), 0o644); err != nil {
 		return nil, fmt.Errorf("write markdown file: %w", err)
 	}
-	absPath, err := filepath.Abs(filePath)
+	absPath, err := filepath.Abs(filename)
 	if err != nil {
-		absPath = filePath
+		absPath = filename
 	}
 	result.FilePath = absPath
 	return result, nil
