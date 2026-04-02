@@ -50,37 +50,37 @@ func runMCP(cmd *cobra.Command, args []string) error {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_transcript",
-		Description: "Get the full AI-generated transcript of a processed episode. Requires a Podwise episode URL (https://podwise.ai/dashboard/episodes/<id>).",
+		Description: "Get the full AI-generated transcript of a processed episode. Requires a Podwise episode URL (https://podwise.ai/dashboard/episodes/<id>). Use 'lang' to get the translated transcript (Chinese, Traditional-Chinese, English, Japanese, Korean).",
 	}, mcpGetTranscript)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_summary",
-		Description: "Get the AI-generated summary and key takeaways for a processed episode. Requires a Podwise episode URL.",
+		Description: "Get the AI-generated summary and key takeaways for a processed episode. Requires a Podwise episode URL. Use 'lang' to get the translated version (Chinese, Traditional-Chinese, English, Japanese, Korean).",
 	}, mcpGetSummary)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_qa",
-		Description: "Get AI-extracted question-and-answer pairs from a processed episode. Requires a Podwise episode URL.",
+		Description: "Get AI-extracted question-and-answer pairs from a processed episode. Requires a Podwise episode URL. Use 'lang' to get the translated version (Chinese, Traditional-Chinese, English, Japanese, Korean).",
 	}, mcpGetQA)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_chapters",
-		Description: "Get the AI-generated chapter breakdown with timestamps for a processed episode. Requires a Podwise episode URL.",
+		Description: "Get the AI-generated chapter breakdown with timestamps for a processed episode. Requires a Podwise episode URL. Use 'lang' to get the translated version (Chinese, Traditional-Chinese, English, Japanese, Korean).",
 	}, mcpGetChapters)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_mindmap",
-		Description: "Get the AI-generated mind map (Markdown outline) for a processed episode. Requires a Podwise episode URL.",
+		Description: "Get the AI-generated mind map (Markdown outline) for a processed episode. Requires a Podwise episode URL. Use 'lang' to get the translated version (Chinese, Traditional-Chinese, English, Japanese, Korean).",
 	}, mcpGetMindmap)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_highlights",
-		Description: "Get AI-extracted notable highlights with timestamps from a processed episode. Requires a Podwise episode URL.",
+		Description: "Get AI-extracted notable highlights with timestamps from a processed episode. Requires a Podwise episode URL. Use 'lang' to get the translated version (Chinese, Traditional-Chinese, English, Japanese, Korean).",
 	}, mcpGetHighlights)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_keywords",
-		Description: "Get AI-extracted topic keywords with descriptions from a processed episode. Requires a Podwise episode URL.",
+		Description: "Get AI-extracted topic keywords with descriptions from a processed episode. Requires a Podwise episode URL. Use 'lang' to get the translated version (Chinese, Traditional-Chinese, English, Japanese, Korean).",
 	}, mcpGetKeywords)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -154,13 +154,34 @@ func mcpLoadClient() (*api.Client, error) {
 	return api.New(cfg.APIBaseURL, cfg.APIKey), nil
 }
 
-// mcpFetchSummary is a thin wrapper around episode.FetchSummary with no cache refresh.
-func mcpFetchSummary(ctx context.Context, client *api.Client, rawURL string) (*episode.SummaryResult, error) {
+// mcpFetchTranscript is a thin wrapper around episode.FetchTranscripts with no cache
+// refresh. lang is the raw language name from the MCP caller; it is validated and
+// resolved here so the handler doesn't need to call ResolveLangName itself.
+func mcpFetchTranscript(ctx context.Context, client *api.Client, rawURL, lang string) (*episode.TranscriptResult, error) {
 	seq, err := episode.ParseSeq(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid episode URL: %w", err)
 	}
-	return episode.FetchSummary(ctx, client, seq, false, "")
+	language, err := episode.ResolveLangName(lang)
+	if err != nil {
+		return nil, err
+	}
+	return episode.FetchTranscripts(ctx, client, seq, false, language)
+}
+
+// mcpFetchSummary is a thin wrapper around episode.FetchSummary with no cache refresh.
+// lang is the raw language name from the MCP caller; it is validated and resolved here
+// so individual handlers don't need to call ResolveLangName themselves.
+func mcpFetchSummary(ctx context.Context, client *api.Client, rawURL, lang string) (*episode.SummaryResult, error) {
+	seq, err := episode.ParseSeq(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid episode URL: %w", err)
+	}
+	language, err := episode.ResolveLangName(lang)
+	if err != nil {
+		return nil, err
+	}
+	return episode.FetchSummary(ctx, client, seq, false, language)
 }
 
 // ─── Tool: search_episode / search_podcast ────────────────────────────────────
@@ -302,20 +323,16 @@ type mcpGetTranscriptInput struct {
 	EpisodeURL string `json:"episode_url"          jsonschema:"Podwise episode URL (https://podwise.ai/dashboard/episodes/<id>)"`
 	Format     string `json:"format,omitempty"     jsonschema:"output format: text (default), srt, or vtt"`
 	Seconds    bool   `json:"seconds,omitempty"    jsonschema:"show timestamps as seconds instead of hh:mm:ss"`
+	Lang       string `json:"lang,omitempty"       jsonschema:"return the translated transcript in this language: Chinese, Traditional-Chinese, English, Japanese, Korean"`
 }
 
 func mcpGetTranscript(ctx context.Context, req *mcp.CallToolRequest, in mcpGetTranscriptInput) (*mcp.CallToolResult, any, error) {
-	seq, err := episode.ParseSeq(in.EpisodeURL)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid episode URL: %w", err)
-	}
-
 	client, err := mcpLoadClient()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	transcriptResult, err := episode.FetchTranscripts(ctx, client, seq, false, "")
+	transcriptResult, err := mcpFetchTranscript(ctx, client, in.EpisodeURL, in.Lang)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -335,7 +352,8 @@ func mcpGetTranscript(ctx context.Context, req *mcp.CallToolRequest, in mcpGetTr
 // ─── Tool: get_summary ────────────────────────────────────────────────────────
 
 type mcpEpisodeInput struct {
-	EpisodeURL string `json:"episode_url" jsonschema:"Podwise episode URL (https://podwise.ai/dashboard/episodes/<id>)"`
+	EpisodeURL string `json:"episode_url"    jsonschema:"Podwise episode URL (https://podwise.ai/dashboard/episodes/<id>)"`
+	Lang       string `json:"lang,omitempty" jsonschema:"return the translated version in this language: Chinese, Traditional-Chinese, English, Japanese, Korean"`
 }
 
 func mcpGetSummary(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput) (*mcp.CallToolResult, any, error) {
@@ -343,7 +361,7 @@ func mcpGetSummary(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeI
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
+	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL, in.Lang)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -357,7 +375,7 @@ func mcpGetQA(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeInput)
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
+	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL, in.Lang)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -371,7 +389,7 @@ func mcpGetChapters(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisode
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
+	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL, in.Lang)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -385,7 +403,7 @@ func mcpGetMindmap(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisodeI
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
+	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL, in.Lang)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -399,7 +417,7 @@ func mcpGetHighlights(ctx context.Context, req *mcp.CallToolRequest, in mcpEpiso
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
+	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL, in.Lang)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -413,7 +431,7 @@ func mcpGetKeywords(ctx context.Context, req *mcp.CallToolRequest, in mcpEpisode
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL)
+	result, err := mcpFetchSummary(ctx, client, in.EpisodeURL, in.Lang)
 	if err != nil {
 		return nil, nil, err
 	}
