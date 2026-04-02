@@ -107,7 +107,7 @@ func buildObsidianMarkdown(seq int, title string, summary *SummaryResult, segmen
 		section("Keywords", summary.FormatKeywords())
 	}
 	if len(segments) > 0 {
-		section("Transcript", FormatTranscriptText(segments, false))
+		section("Transcript", FormatMergedTranscript(segments))
 	}
 
 	return sb.String()
@@ -144,7 +144,7 @@ func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts Obs
 	if err != nil {
 		return nil, fmt.Errorf("fetch transcript: %w", err)
 	}
-	segments := transcriptResult.Segments
+	segments := MergeSegments(transcriptResult.Segments, 60_000)
 
 	// Derive a human-readable title.
 	title := fmt.Sprintf("Episode %d", seq)

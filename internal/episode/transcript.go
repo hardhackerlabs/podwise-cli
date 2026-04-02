@@ -143,6 +143,109 @@ func segmentTimeLabel(seg Segment, useSeconds bool) string {
 	return trimTime(seg.Time)
 }
 
+// endsWithSentenceTerminator reports whether s ends with a sentence-terminal
+// punctuation mark (supports both ASCII and full-width CJK variants).
+func endsWithSentenceTerminator(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	runes := []rune(s)
+	switch runes[len(runes)-1] {
+	case '.', '?', '!', '…', ';',
+		'。', '？', '！', '；':
+		return true
+	}
+	return false
+}
+
+// MergeSegments merges consecutive same-speaker segments into longer passages.
+//
+// The primary goal is to accumulate as much content as possible up to
+// maxDurationMs.  Sentence-terminating punctuation acts only as a soft hint:
+// when a duration limit is hit, the cut is made at the last punctuation
+// boundary within the current accumulation so the output ends at a natural
+// sentence break; if no such boundary exists the cut falls at the last
+// accumulated segment.
+//
+// Hard flush conditions (always start a new segment):
+//   - The speaker changes.
+//   - Adding the next segment would exceed maxDurationMs.
+//
+// The merged segment inherits the Time/Start/Speaker of the first segment in
+// the group and the End of the last segment.  Content pieces are joined with a
+// single space.
+func MergeSegments(segments []Segment, maxDurationMs float64) []Segment {
+	if len(segments) == 0 {
+		return nil
+	}
+
+	var result []Segment
+	var acc []Segment
+
+	flushAcc := func(a []Segment) {
+		if len(a) == 0 {
+			return
+		}
+		merged := a[0]
+		var sb strings.Builder
+		for i, s := range a {
+			c := strings.TrimSpace(s.Content)
+			if c == "" {
+				continue
+			}
+			if i > 0 && sb.Len() > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(c)
+		}
+		merged.Content = sb.String()
+		merged.End = segmentEnd(a[len(a)-1])
+		if merged.Content != "" {
+			result = append(result, merged)
+		}
+	}
+
+	for _, seg := range segments {
+		if seg.Content == "" {
+			continue
+		}
+
+		if len(acc) == 0 {
+			acc = append(acc, seg)
+			continue
+		}
+
+		speakerChanged := seg.Speaker != acc[0].Speaker
+		durationExceeded := segmentEnd(seg)-acc[0].Start > maxDurationMs
+
+		if speakerChanged || durationExceeded {
+			if durationExceeded && !speakerChanged {
+				// Prefer to cut at the last sentence-terminating punctuation
+				// already in acc so the merged segment ends naturally.
+				lastTerm := -1
+				for i, s := range acc {
+					if endsWithSentenceTerminator(s.Content) {
+						lastTerm = i
+					}
+				}
+				if lastTerm >= 0 {
+					flushAcc(acc[:lastTerm+1])
+					acc = append(acc[lastTerm+1:], seg)
+					continue
+				}
+			}
+			flushAcc(acc)
+			acc = acc[:0]
+		}
+
+		acc = append(acc, seg)
+	}
+
+	flushAcc(acc)
+	return result
+}
+
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
 // FormatTranscriptText formats transcript segments as plain text.
@@ -151,11 +254,36 @@ func segmentTimeLabel(seg Segment, useSeconds bool) string {
 func FormatTranscriptText(segments []Segment, useSeconds bool) string {
 	var sb strings.Builder
 	for _, seg := range segments {
+		if seg.Content == "" {
+			continue
+		}
 		t := segmentTimeLabel(seg, useSeconds)
 		if seg.Speaker != "" {
 			fmt.Fprintf(&sb, "[%s] - %s: %s\n", t, seg.Speaker, seg.Content)
 		} else {
 			fmt.Fprintf(&sb, "[%s] - %s\n", t, seg.Content)
+		}
+	}
+	return sb.String()
+}
+
+// FormatMergedTranscript formats merged transcript segments as plain text.
+// Each segment is rendered as "[timestamp] - [speaker: ]content" with a blank
+// line between entries, which improves readability in Markdown previews.
+func FormatMergedTranscript(segments []Segment) string {
+	var sb strings.Builder
+	for i, seg := range segments {
+		if seg.Content == "" {
+			continue
+		}
+		if i > 0 {
+			sb.WriteByte('\n')
+		}
+		t := trimTime(seg.Time)
+		if seg.Speaker != "" {
+			fmt.Fprintf(&sb, "[%s] **%s**\n%s\n", t, seg.Speaker, seg.Content)
+		} else {
+			fmt.Fprintf(&sb, "[%s]\n%s\n", t, seg.Content)
 		}
 	}
 	return sb.String()
@@ -171,15 +299,18 @@ type SegmentJSON struct {
 // FormatTranscriptJSON serialises transcript segments as indented JSON.
 // When useSeconds is true, the start field is a float (seconds); otherwise a string timestamp.
 func FormatTranscriptJSON(segments []Segment, useSeconds bool) ([]byte, error) {
-	out := make([]SegmentJSON, len(segments))
-	for i, seg := range segments {
+	out := make([]SegmentJSON, 0, len(segments))
+	for _, seg := range segments {
+		if seg.Content == "" {
+			continue
+		}
 		var start any
 		if useSeconds {
 			start = seg.Start / 1000
 		} else {
 			start = seg.Time
 		}
-		out[i] = SegmentJSON{Start: start, Speaker: seg.Speaker, Content: seg.Content}
+		out = append(out, SegmentJSON{Start: start, Speaker: seg.Speaker, Content: seg.Content})
 	}
 	return json.MarshalIndent(out, "", "  ")
 }
@@ -187,12 +318,17 @@ func FormatTranscriptJSON(segments []Segment, useSeconds bool) ([]byte, error) {
 // FormatTranscriptSRT formats transcript segments as an SRT subtitle file.
 func FormatTranscriptSRT(segments []Segment) string {
 	var sb strings.Builder
-	for i, seg := range segments {
+	idx := 1
+	for _, seg := range segments {
+		if seg.Content == "" {
+			continue
+		}
 		fmt.Fprintf(&sb, "%d\n%s --> %s\n",
-			i+1,
+			idx,
 			msToTimestamp(seg.Start, ','),
 			msToTimestamp(segmentEnd(seg), ','),
 		)
+		idx++
 		if seg.Speaker != "" {
 			fmt.Fprintf(&sb, "%s: %s\n", seg.Speaker, seg.Content)
 		} else {
@@ -209,6 +345,9 @@ func FormatTranscriptVTT(segments []Segment) string {
 	var sb strings.Builder
 	sb.WriteString("WEBVTT\n\n")
 	for _, seg := range segments {
+		if seg.Content == "" {
+			continue
+		}
 		fmt.Fprintf(&sb, "%s --> %s\n",
 			msToTimestamp(seg.Start, '.'),
 			msToTimestamp(segmentEnd(seg), '.'),

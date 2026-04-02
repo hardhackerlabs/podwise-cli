@@ -131,7 +131,11 @@ func (r *SummaryResult) FormatChapters() string {
 		if ch.HasAds {
 			adLabel = " [ad]"
 		}
-		fmt.Fprintf(&sb, "### [%s] Chapter %d: %s%s\n\n", trimTime(ch.Time), i+1, ch.Title, adLabel)
+		if t := trimTime(ch.Time); t != "" {
+			fmt.Fprintf(&sb, "### [%s] Chapter %d: %s%s\n\n", t, i+1, ch.Title, adLabel)
+		} else {
+			fmt.Fprintf(&sb, "### Chapter %d: %s%s\n\n", i+1, ch.Title, adLabel)
+		}
 		if ch.Summary != "" {
 			fmt.Fprintf(&sb, "%s\n", ch.Summary)
 		}
