@@ -180,38 +180,74 @@ podwise get transcript <episode-url> --format vtt  # WebVTT
 
 ---
 
+### translate
+
+Request translation of an episode's transcript and summary into a target language, then wait for completion.
+
+```bash
+podwise translate <episode-url> --lang Chinese
+```
+
+Supported languages: `Chinese`, `Traditional-Chinese`, `English`, `Japanese`, `Korean`
+
+---
+
+### export
+
+Export AI-generated episode content to external services.
+
+```bash
+# Export to Notion
+podwise export notion <episode-url>
+podwise export notion <episode-url> --lang Chinese
+
+# Export to Readwise Reader
+podwise export readwise <episode-url>
+podwise export readwise <episode-url> --location later
+podwise export readwise <episode-url> --lang Chinese
+
+# Export to Obsidian
+podwise export obsidian <episode-url>
+podwise export obsidian <episode-url> --lang Chinese
+podwise export obsidian <episode-url> --folder Podcasts/2026
+```
+
 ## Artifact Reference
 
-| Artifact | Command | Description |
-|---|---|---|
-| Summary | `get summary` | AI-generated summary and key takeaways |
-| Transcript | `get transcript` | Full transcript in text, SRT, or VTT |
-| Chapters | `get chapters` | Chapter breakdown with timestamps |
-| Highlights | `get highlights` | Notable highlights with timestamps |
-| Q&A | `get qa` | AI-extracted question and answer pairs |
-| Mind map | `get mindmap` | Topic structure as a nested tree |
-| Keywords | `get keywords` | Topic keywords with descriptions |
+| Artifact   | Command          | Description                            |
+| ---------- | ---------------- | -------------------------------------- |
+| Summary    | `get summary`    | AI-generated summary and key takeaways |
+| Transcript | `get transcript` | Full transcript in text, SRT, or VTT   |
+| Chapters   | `get chapters`   | Chapter breakdown with timestamps      |
+| Highlights | `get highlights` | Notable highlights with timestamps     |
+| Q&A        | `get qa`         | AI-extracted question and answer pairs |
+| Mind map   | `get mindmap`    | Topic structure as a nested tree       |
+| Keywords   | `get keywords`   | Topic keywords with descriptions       |
 
 ---
 
 ## Intent → Command Mapping
 
-| User wants to… | Command |
-|---|---|
-| Find episodes about a topic | `search episode "X"` |
-| Find a podcast by name | `search podcast "X"` |
-| See what's trending | `popular` |
-| See new episodes from followed shows | `list episodes --latest 7` |
-| Explore a specific show's episodes | `drill <podcast-url>` |
-| Get a synthesized answer from transcripts | `ask "X"` |
-| Summarize an episode | `get summary <url>` |
-| Get the full transcript | `get transcript <url>` |
-| Export subtitles | `get transcript <url> --format srt` |
-| Process a YouTube video | confirm → `process <youtube-url>` |
-| Transcribe a local file | confirm → `process <file>` |
-| Follow a podcast | `follow <podcast-url>` |
-| See listening history | `history listened` |
-| See reading history | `history read` |
+| User wants to…                            | Command                             |
+| ----------------------------------------- | ----------------------------------- |
+| Find episodes about a topic               | `search episode "X"`                |
+| Find a podcast by name                    | `search podcast "X"`                |
+| See what's trending                       | `popular`                           |
+| See new episodes from followed shows      | `list episodes --latest 7`          |
+| Explore a specific show's episodes        | `drill <podcast-url>`               |
+| Get a synthesized answer from transcripts | `ask "X"`                           |
+| Summarize an episode                      | `get summary <url>`                 |
+| Get the full transcript                   | `get transcript <url>`              |
+| Export subtitles                          | `get transcript <url> --format srt` |
+| Process a YouTube video                   | confirm → `process <youtube-url>`   |
+| Transcribe a local file                   | confirm → `process <file>`          |
+| Follow a podcast                          | `follow <podcast-url>`              |
+| See listening history                     | `history listened`                  |
+| See reading history                       | `history read`                      |
+| Translate an episode transcript/summary   | `translate <url> --lang Chinese`    |
+| Export episode notes to Notion            | `export notion <url>`               |
+| Export episode notes to Readwise          | `export readwise <url>`             |
+| Export episode notes to Obsidian          | `export obsidian <url>`             |
 
 ---
 
