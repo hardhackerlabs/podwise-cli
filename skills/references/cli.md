@@ -210,14 +210,18 @@ podwise export readwise <episode-url> --lang Chinese
 podwise export obsidian <episode-url>
 podwise export obsidian <episode-url> --lang Chinese
 podwise export obsidian <episode-url> --folder Podcasts/2026
+
+# Export to a local file
+podwise export markdown <episode-url>
+podwise export markdown <episode-url> --lang Chinese
 ```
 
 ## Artifact Reference
 
 | Artifact   | Command          | Description                            |
 | ---------- | ---------------- | -------------------------------------- |
-| Summary    | `get summary`    | AI-generated summary and key takeaways |
 | Transcript | `get transcript` | Full transcript in text, SRT, or VTT   |
+| Summary    | `get summary`    | AI-generated summary and key takeaways |
 | Chapters   | `get chapters`   | Chapter breakdown with timestamps      |
 | Highlights | `get highlights` | Notable highlights with timestamps     |
 | Q&A        | `get qa`         | AI-extracted question and answer pairs |
@@ -248,6 +252,7 @@ podwise export obsidian <episode-url> --folder Podcasts/2026
 | Export episode notes to Notion            | `export notion <url>`               |
 | Export episode notes to Readwise          | `export readwise <url>`             |
 | Export episode notes to Obsidian          | `export obsidian <url>`             |
+| Export episode notes to local file        | `export markdown <url>`             |
 
 ---
 

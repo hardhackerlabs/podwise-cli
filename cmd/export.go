@@ -36,6 +36,12 @@ var (
 	obsidianLang   string
 )
 
+// Markdown export flags
+var (
+	markdownOutput string
+	markdownLang   string
+)
+
 // podwise export notion <episode-url>
 var exportNotionCmd = &cobra.Command{
 	Use:   "notion <episode-url>",
@@ -63,9 +69,13 @@ func init() {
 	exportObsidianCmd.Flags().StringVar(&obsidianFolder, "folder", "", "vault-relative folder to place the note in (e.g. Podcasts/2026); defaults to vault root")
 	exportObsidianCmd.Flags().StringVar(&obsidianLang, "lang", "", langUsage)
 
+	exportMarkdownCmd.Flags().StringVar(&markdownOutput, "output", "", "directory to write the .md file into (default: current directory)")
+	exportMarkdownCmd.Flags().StringVar(&markdownLang, "lang", "", langUsage)
+
 	exportCmd.AddCommand(exportNotionCmd)
 	exportCmd.AddCommand(exportReadwiseCmd)
 	exportCmd.AddCommand(exportObsidianCmd)
+	exportCmd.AddCommand(exportMarkdownCmd)
 }
 
 func runExportNotion(cmd *cobra.Command, args []string) error {
@@ -211,13 +221,14 @@ func runExportObsidian(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := episode.ResolveLangName(obsidianLang); err != nil {
+	lang, err := episode.ResolveLangName(obsidianLang)
+	if err != nil {
 		return err
 	}
 
 	opts := episode.ObsidianExportOptions{
 		Folder:   obsidianFolder,
-		Language: obsidianLang,
+		Language: lang,
 	}
 
 	client := api.New(cfg.APIBaseURL, cfg.APIKey)
@@ -240,6 +251,61 @@ func runExportObsidian(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  • Drag and drop %s into the Obsidian File Explorer, or\n", result.FilePath)
 		fmt.Printf("  • Copy the file directly into your Obsidian vault folder\n")
 	}
+
+	return nil
+}
+
+// podwise export markdown <episode-url>
+var exportMarkdownCmd = &cobra.Command{
+	Use:   "markdown <episode-url>",
+	Short: "Export episode content to a local Markdown file",
+	Long: `Export a processed episode's content to a local Markdown file.
+
+The file is written to the current directory by default. Use --output to
+specify a different destination directory.`,
+	Example: `  podwise export markdown https://podwise.ai/dashboard/episodes/7360326
+  podwise export markdown https://podwise.ai/dashboard/episodes/7360326 --lang Chinese
+  podwise export markdown https://podwise.ai/dashboard/episodes/7360326 --output ~/notes/podcasts`,
+	Args: cobra.ExactArgs(1),
+	RunE: runExportMarkdown,
+}
+
+func runExportMarkdown(cmd *cobra.Command, args []string) error {
+	seq, err := episode.ParseSeq(args[0])
+	if err != nil {
+		return fmt.Errorf("invalid episode: %w", err)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if err := config.Validate(cfg); err != nil {
+		return err
+	}
+
+	lang, err := episode.ResolveLangName(markdownLang)
+	if err != nil {
+		return err
+	}
+
+	opts := episode.MarkdownExportOptions{
+		OutputDir: markdownOutput,
+		Language:  lang,
+	}
+
+	client := api.New(cfg.APIBaseURL, cfg.APIKey)
+	ctx := context.Background()
+
+	fmt.Printf("Fetching episode %s for Markdown export...\n", episode.BuildEpisodeURL(seq))
+
+	result, err := episode.ExportToMarkdown(ctx, client, seq, opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("\n✓ Markdown file saved\n")
+	fmt.Printf("  File: %s\n", result.FilePath)
 
 	return nil
 }

@@ -3,6 +3,8 @@ package episode
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/hardhacker/podwise-cli/internal/api"
 	"github.com/hardhacker/podwise-cli/internal/async"
@@ -192,4 +194,63 @@ func formatReadwiseError(err error) error {
 	default:
 		return err
 	}
+}
+
+// MarkdownExportOptions holds parameters for exporting to a local Markdown file.
+type MarkdownExportOptions struct {
+	// OutputDir is the directory where the .md file will be written.
+	// Empty string means the current working directory.
+	OutputDir string
+	// Language is the language code for fetching a pre-translated version.
+	// Empty string means use the original language.
+	Language string
+}
+
+// MarkdownExportResult holds the result of a local Markdown export.
+type MarkdownExportResult struct {
+	// FilePath is the absolute path to the generated markdown file.
+	FilePath string
+}
+
+// ExportToMarkdown fetches the episode's summary and transcript, renders an
+// Obsidian-compatible Markdown note, and writes it to the specified directory
+// (defaulting to the current working directory).
+func ExportToMarkdown(ctx context.Context, client *api.Client, seq int, opts MarkdownExportOptions) (*MarkdownExportResult, error) {
+	summary, err := FetchSummary(ctx, client, seq, false, opts.Language)
+	if err != nil {
+		return nil, fmt.Errorf("fetch summary: %w", err)
+	}
+
+	transcriptResult, err := FetchTranscripts(ctx, client, seq, false, opts.Language)
+	if err != nil {
+		return nil, fmt.Errorf("fetch transcript: %w", err)
+	}
+	segments := MergeSegments(transcriptResult.Segments, 60_000)
+
+	title := fmt.Sprintf("Episode %d", seq)
+	if transcriptResult.Episode != nil && transcriptResult.Episode.Title != "" {
+		title = transcriptResult.Episode.Title
+	}
+
+	md := buildObsidianMarkdown(seq, title, summary, segments)
+	filename := fmt.Sprintf("%s_%d.md", sanitizeFilename(title), seq)
+
+	destDir := opts.OutputDir
+	if destDir == "" {
+		destDir = "."
+	}
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create output directory: %w", err)
+	}
+
+	dest := filepath.Join(destDir, filename)
+	if err := os.WriteFile(dest, []byte(md), 0o644); err != nil {
+		return nil, fmt.Errorf("write markdown file: %w", err)
+	}
+
+	absPath, err := filepath.Abs(dest)
+	if err != nil {
+		absPath = dest
+	}
+	return &MarkdownExportResult{FilePath: absPath}, nil
 }
