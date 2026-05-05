@@ -105,4 +105,5 @@ func init() {
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(historyCmd)
 	rootCmd.AddCommand(translateCmd)
+	rootCmd.AddCommand(clipCmd)
 }

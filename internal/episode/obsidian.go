@@ -208,20 +208,29 @@ func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts Obs
 
 	md := buildObsidianMarkdown(seq, title, summary, segments)
 	filename := fmt.Sprintf("%s_%d.md", sanitizeFilename(title), seq)
+	return WriteMarkdownToObsidian(md, filename, opts.Folder)
+}
+
+// WriteMarkdownToObsidian saves markdown into the Obsidian vault when discoverable
+// (via obsidian.json), otherwise writes to the current working directory — same rules
+// as ExportToObsidian. filename must be a base name (e.g. note.md); any path is ignored
+// except the last segment (filepath.Base).
+func WriteMarkdownToObsidian(markdown string, filename string, vaultRelativeFolder string) (*ObsidianExportResult, error) {
+	filename = filepath.Base(filename)
+	if filename == "" || filename == "." {
+		return nil, fmt.Errorf("invalid markdown filename")
+	}
+
 	result := &ObsidianExportResult{}
 
-	// ── Path 1: write directly into the Obsidian vault ───────────────────────
-	// Locate the vault from obsidian.json; no app process required.
 	if vaultPath, vaultErr := findObsidianVault(); vaultErr == nil && vaultPath != "" {
 		destDir := vaultPath
-		if opts.Folder != "" {
-			// filepath.FromSlash converts forward-slash separators to the OS
-			// separator on Windows, keeping behaviour correct cross-platform.
-			destDir = filepath.Join(vaultPath, filepath.FromSlash(strings.TrimSuffix(opts.Folder, "/")))
+		if vaultRelativeFolder != "" {
+			destDir = filepath.Join(vaultPath, filepath.FromSlash(strings.TrimSuffix(vaultRelativeFolder, "/")))
 		}
 		if mkErr := os.MkdirAll(destDir, 0o755); mkErr == nil {
 			dest := filepath.Join(destDir, filename)
-			if writeErr := os.WriteFile(dest, []byte(md), 0o644); writeErr == nil {
+			if writeErr := os.WriteFile(dest, []byte(markdown), 0o644); writeErr == nil {
 				result.FilePath = dest
 				result.WrittenToVault = true
 				return result, nil
@@ -229,8 +238,7 @@ func ExportToObsidian(ctx context.Context, client *api.Client, seq int, opts Obs
 		}
 	}
 
-	// ── Path 2: fallback – write to the current working directory ────────────
-	if err := os.WriteFile(filename, []byte(md), 0o644); err != nil {
+	if err := os.WriteFile(filename, []byte(markdown), 0o644); err != nil {
 		return nil, fmt.Errorf("write markdown file: %w", err)
 	}
 	absPath, err := filepath.Abs(filename)

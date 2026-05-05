@@ -216,6 +216,30 @@ podwise export markdown <episode-url>
 podwise export markdown <episode-url> --lang Chinese
 ```
 
+---
+
+### clip
+
+List and export **user-saved clips** for a Podwise episode.
+
+```bash
+# List ready clips — default is markdown-style text; use --json for parsing
+podwise clip list https://podwise.ai/dashboard/episodes/7360326
+podwise clip list https://podwise.ai/dashboard/episodes/7360326 --json
+
+# Download server-built Markdown for all ready clips
+podwise clip export markdown https://podwise.ai/dashboard/episodes/7360326
+
+# Same Markdown as above, then save into Obsidian vault
+podwise clip export obsidian https://podwise.ai/dashboard/episodes/7360326
+
+# Send ready clips to Readwise / Notion (requires tokens and integration in Podwise settings)
+podwise clip export readwise https://podwise.ai/dashboard/episodes/7360326
+podwise clip export notion https://podwise.ai/dashboard/episodes/7360326
+```
+
+---
+
 ## Artifact Reference
 
 | Artifact   | Command          | Description                            |
@@ -232,27 +256,30 @@ podwise export markdown <episode-url> --lang Chinese
 
 ## Intent → Command Mapping
 
-| User wants to…                            | Command                             |
-| ----------------------------------------- | ----------------------------------- |
-| Find episodes about a topic               | `search episode "X"`                |
-| Find a podcast by name                    | `search podcast "X"`                |
-| See what's trending                       | `popular`                           |
-| See new episodes from followed shows      | `list episodes --latest 7`          |
-| Explore a specific show's episodes        | `drill <podcast-url>`               |
-| Get a synthesized answer from transcripts | `ask "X"`                           |
-| Summarize an episode                      | `get summary <url>`                 |
-| Get the full transcript                   | `get transcript <url>`              |
-| Export subtitles                          | `get transcript <url> --format srt` |
-| Process a YouTube video                   | confirm → `process <youtube-url>`   |
-| Transcribe a local file                   | confirm → `process <file>`          |
-| Follow a podcast                          | `follow <podcast-url>`              |
-| See listening history                     | `history listened`                  |
-| See reading history                       | `history read`                      |
-| Translate an episode transcript/summary   | `translate <url> --lang Chinese`    |
-| Export episode notes to Notion            | `export notion <url>`               |
-| Export episode notes to Readwise          | `export readwise <url>`             |
-| Export episode notes to Obsidian          | `export obsidian <url>`             |
-| Export episode notes to local file        | `export markdown <url>`             |
+| User wants to…                            | Command                                                     |
+| ----------------------------------------- | ----------------------------------------------------------- |
+| Find episodes about a topic               | `search episode "X"`                                        |
+| Find a podcast by name                    | `search podcast "X"`                                        |
+| See what's trending                       | `popular`                                                   |
+| See new episodes from followed shows      | `list episodes --latest 7`                                  |
+| Explore a specific show's episodes        | `drill <podcast-url>`                                       |
+| Get a synthesized answer from transcripts | `ask "X"`                                                   |
+| Summarize an episode                      | `get summary <url>`                                         |
+| Get the full transcript                   | `get transcript <url>`                                      |
+| Export subtitles                          | `get transcript <url> --format srt`                         |
+| Process a YouTube video                   | confirm → `process <youtube-url>`                           |
+| Transcribe a local file                   | confirm → `process <file>`                                  |
+| Follow a podcast                          | `follow <podcast-url>`                                      |
+| See listening history                     | `history listened`                                          |
+| See reading history                       | `history read`                                              |
+| Translate an episode transcript/summary   | `translate <url> --lang Chinese`                            |
+| Export episode notes to Notion            | `export notion <url>`                                       |
+| Export episode notes to Readwise          | `export readwise <url>`                                     |
+| Export episode notes to Obsidian          | `export obsidian <url>`                                     |
+| Export episode notes to local file        | `export markdown <url>`                                     |
+| List my clips for an episode              | `clip list <episode-url>`                                   |
+| Export clips to Markdown / Obsidian       | `clip export markdown <url>` / `clip export obsidian <url>` |
+| Send clips to Readwise / Notion           | `clip export readwise <url>` / `clip export notion <url>`   |
 
 ---
 
