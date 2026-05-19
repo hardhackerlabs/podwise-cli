@@ -8,7 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const defaultAPIBaseURL = "https://podwise.ai/api"
+const defaultAPIBaseURL = "https://app.podwise.ai/api"
 
 // DefaultGlamourStyle is the glamour style used when none is configured.
 const DefaultGlamourStyle = "dark"

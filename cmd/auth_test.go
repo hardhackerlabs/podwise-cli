@@ -26,7 +26,7 @@ func TestCLIAuthBrowserURL(t *testing.T) {
 	}{
 		{
 			name:       "default podwise URL",
-			apiBaseURL: "https://podwise.ai/api",
+			apiBaseURL: "https://app.podwise.ai/api",
 			want:       "https://podwise.ai/auth/cli?confirm_code=abc123",
 		},
 		{
@@ -56,7 +56,7 @@ func TestCLIAuthBrowserURL(t *testing.T) {
 
 func TestInitCLIAuthRetriesServerErrors(t *testing.T) {
 	var attempts atomic.Int32
-	client := api.New("https://podwise.ai/api", "", api.WithHTTPClient(&http.Client{
+	client := api.New("https://app.podwise.ai/api", "", api.WithHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			attempt := attempts.Add(1)
 			if req.URL.Path != "/api/no-auth/cli/auth/init" {
@@ -86,7 +86,7 @@ func TestInitCLIAuthRetriesServerErrors(t *testing.T) {
 
 func TestPollCLIAuthAuthorized(t *testing.T) {
 	var polls atomic.Int32
-	client := api.New("https://podwise.ai/api", "", api.WithHTTPClient(&http.Client{
+	client := api.New("https://app.podwise.ai/api", "", api.WithHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if got := req.URL.Query().Get("confirmCode"); got != "abc123" {
 				t.Fatalf("confirmCode = %q, want %q", got, "abc123")
@@ -113,7 +113,7 @@ func TestPollCLIAuthAuthorized(t *testing.T) {
 }
 
 func TestPollCLIAuthExpired(t *testing.T) {
-	client := api.New("https://podwise.ai/api", "", api.WithHTTPClient(&http.Client{
+	client := api.New("https://app.podwise.ai/api", "", api.WithHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return jsonResponse(http.StatusNotFound, `{"error":"Not found or expired"}`), nil
 		}),

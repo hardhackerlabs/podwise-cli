@@ -80,7 +80,7 @@ var configSetCmd = &cobra.Command{
 
 Available keys:
   api_key       Your podwise.ai API key
-  api_base_url  API base URL (default: https://podwise.ai/api)
+  api_base_url  API base URL (default: https://app.podwise.ai/api)
   glamour_style Markdown render style for --pretty output
                 Valid values: dark, light, dracula, tokyo-night, ascii, notty, pink
                 (default: dark)
@@ -90,7 +90,7 @@ To create or find your API key, visit:
 
 Examples:
   podwise config set api_key sk-xxxx
-  podwise config set api_base_url https://podwise.ai/api
+  podwise config set api_base_url https://app.podwise.ai/api
   podwise config set glamour_style dracula`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
